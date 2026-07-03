@@ -21,7 +21,8 @@ Como no jogo anterior do time, cada personagem é uma **arte pixel-art de corpo 
 - **Lobby**: card com a arte grande e o nome embaixo na cor do personagem — mesmo visual do jogo 3.
 - **Na arena**: sprite escalado (~1 célula), flip horizontal conforme a direção, animação de "bob" (balanço código-driven ao andar) e sombra elíptica. Sem spritesheet de animação na v1 — um único frame frontal por personagem basta.
 - **Direção olhada**: como várias habilidades são direcionais (teleporte, chute de bomba, dash), a direção do personagem é sempre mostrada por um **indicador desenhado por código** (setinha sutil aos pés) — não depende da arte.
-- **Upgrade opcional para 4 lados**: o campo `sprite` aceita tanto um caminho único (vista frontal) quanto um mapa `{ down, up, left, right }` (`SpriteRef` em `src/shared/types.ts`). Trocar no JSON basta, sem mudança de código. v1 fica na vista frontal porque gerar 4 vistas consistentes do mesmo personagem com IA é o gargalo real (32 imagens em vez de 8).
+- **Upgrade opcional para 4 lados**: o campo `sprite` aceita tanto um caminho único (vista frontal) quanto um mapa `{ down, up, left, right }` (`SpriteRef` em `src/shared/types.ts`). Trocar no JSON basta, sem mudança de código. (Validado: o pipeline de sheets já entrega as 4 vistas.)
+- **Upgrade futuro para animação de quadros** (andar, idle): evoluir `SpriteRef` para aceitar uma lista de frames por direção. A mudança fica restrita ao schema do config + o desenho do jogador no renderizador do cliente — o servidor não conhece arte. Animações de **efeitos** (explosão, dash, congelamento) nem dependem disso: são disparadas pelos eventos do servidor e desenhadas proceduralmente ou com spritesheets próprios, 100% no cliente.
 - **Placeholder**: enquanto a arte de alguém não existe (`sprite: null`), o jogo desenha um boneco simples com a cor + inicial do nome. Desenvolvimento nunca bloqueia em arte.
 - **Produção da arte** (pipeline oficial): gerar com IA de imagem (Gemini), passando **uma imagem de referência de estilo + a foto da pessoa**, pedindo uma *character sheet* com **3 vistas do mesmo personagem em uma única imagem** (frontal, lateral direita, costas — lado a lado, mesma escala, pés alinhados, fundo branco puro, sem texto/sombra). Gerar as vistas juntas é o que garante consistência do personagem; a 4ª direção (esquerda) é a lateral flipada. O slot de tema da roupa/acessório deve casar com a habilidade da pessoa (freeze → mago de gelo, etc.). O prompt completo fica em `docs/prompt-personagens.md`. Depois, um script fatia a sheet em PNGs individuais e remove o fundo branco. Só a vista frontal é indispensável — sheets com vistas ruins não bloqueiam nada.
 
@@ -52,8 +53,17 @@ O sistema de habilidades vive na fundação (`server/core/abilities.ts`); efeito
 - Servidor autoritativo, tick fixo de **30 Hz**; snapshots para os clientes a **15 Hz**.
 - Cliente envia **estado de input** (teclas seguradas) em keydown/keyup, não comandos por frame.
 - Cliente renderiza com **interpolação** entre os 2 últimos snapshots (~100ms de buffer). Sem predição na v1 — com movimento simples e ping doméstico, interpolação basta.
+- Além dos snapshots, o servidor emite **eventos pontuais** (bomba explodiu, jogador eliminado, power-up pego, repasse da batata) — é o gancho do cliente para animações, partículas e sons. Apresentação nunca é derivada "adivinhando" diffs de snapshot; todo efeito nasce de um evento.
 - **Reconexão**: token no localStorage; quem cair volta no mesmo personagem com o estado atual. Jogador desconectado no meio da rodada fica parado (e provavelmente morre — azar).
 - Uma sala única por servidor é suficiente (um time), mas o código usa uma abstração `Room` para não fechar portas.
+
+## Áudio
+
+- Música de fundo em loop (uma faixa por modo) + efeitos sonoros disparados pelos **eventos do servidor** (explosão, repasse, eliminação, power-up, contagem regressiva) — mesma fonte que alimenta as animações.
+- `client/core/audio.ts`: manifest de arquivos em `src/client/public/audio/`, com volumes separados para música e efeitos e botão de mute no lobby/HUD.
+- O time joga **em call** durante a retro: música começa em volume baixo por padrão, cada um ajusta o seu.
+- Navegadores só liberam áudio após um gesto do usuário — o clique de "pronto" no lobby satisfaz isso naturalmente.
+- Fontes de áudio: faixas chiptune royalty-free (OpenGameArt, itch.io, Pixabay) ou geradas por IA.
 
 ## Espectador
 
