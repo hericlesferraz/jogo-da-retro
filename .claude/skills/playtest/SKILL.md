@@ -14,7 +14,7 @@ Objetivo: deixar o jogo rodando com N jogadores (padrão 2) prontos para testar 
    - Com as ferramentas do Chrome (claude-in-chrome): `tabs_create_mcp` + `navigate`.
    - Sem elas: sugira ao usuário abrir `http://localhost:5173` manualmente.
    - **Importante**: abas no mesmo navegador compartilham `localStorage` → mesmo token → mesmo jogador. Para múltiplos jogadores na mesma máquina, varie a origem: `http://localhost:5173`, `http://127.0.0.1:5173` (e, se precisar de mais, o IP da máquina na rede local). Janela anônima também funciona.
-3. **Preencher a sala**: a primeira aba é o host. Em cada aba, escolha um personagem e clique "Estou pronto". Para encher a partida sem mais abas, use o botão "🤖 + bot" (host) — os bots jogam sozinhos.
+3. **Preencher a sala**: a primeira aba é o host. Em cada aba: clique "▶ Entrar" na tela de título, selecione um card, confirme com "Escolher <nome>" no painel de preview e clique "Estou pronto". Para encher a partida sem mais abas, use o botão "🤖 + bot" (host) — os bots jogam sozinhos.
 4. **Iniciar**: host clica "▶ Iniciar partida".
 5. **Validação rápida sem navegador**: `npx tsx tools/smoke-match.ts` (fluxo até a primeira morte, ~15s) ou `--full` (partida inteira até o pódio, ≤ ~3min).
 

@@ -1,5 +1,6 @@
-// DOM screens: lobby, HUD, countdown/intermission/podium overlays, toasts.
-// The canvas only ever draws the arena; everything else is plain DOM.
+// DOM screens: intro, lobby (fighting-game style character select), HUD,
+// countdown/intermission/podium overlays, toasts. The canvas only ever draws
+// the arena; everything else is plain DOM.
 
 import {
   MAX_ROUNDS_PER_MATCH,
@@ -8,6 +9,7 @@ import {
 } from '../../shared/constants';
 import type {
   BomberPlayerSnap,
+  CharacterDef,
   GameSnapshot,
   PlayerId,
   RoomView,
@@ -30,6 +32,7 @@ export function toast(message: string): void {
 
 export function setConnectionStatus(text: string): void {
   $('lobby-status').textContent = text;
+  $('intro-status').textContent = text;
 }
 
 /** Player display name = their character (each person plays themself). */
@@ -39,18 +42,57 @@ function nameOf(view: RoomView, pid: PlayerId): string {
   return char?.nome ?? 'alguém';
 }
 
+function rgba(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return `rgba(255,255,255,${alpha})`;
+  const n = parseInt(m[1]!, 16);
+  return `rgba(${(n >> 16) & 0xff}, ${(n >> 8) & 0xff}, ${n & 0xff}, ${alpha})`;
+}
+
 // ---------------------------------------------------------------- screens
 
-export function showScreen(which: 'lobby' | 'game'): void {
+export function showScreen(which: 'intro' | 'lobby' | 'game'): void {
+  $('screen-intro').hidden = which !== 'intro';
   $('screen-lobby').hidden = which !== 'lobby';
   $('screen-game').hidden = which !== 'game';
 }
 
+// ------------------------------------------------------------------ intro
+
+/** Fills the bobbing roster strip on the title screen (once). */
+export function renderIntro(onEnter: () => void): void {
+  const roster = $('intro-roster');
+  roster.replaceChildren();
+  CHARACTERS.forEach((char, i) => {
+    const img = document.createElement('img');
+    img.className = 'sprite';
+    img.src = artFor(char).cardSrc;
+    img.alt = char.nome;
+    img.title = char.nome;
+    img.style.animationDelay = `${(i % 8) * 0.12}s`;
+    roster.appendChild(img);
+  });
+  $('btn-enter').onclick = onEnter;
+}
+
 // ------------------------------------------------------------------ lobby
 
+/** Last render args, so card clicks can re-render the preview locally. */
+let current: { view: RoomView; myId: PlayerId | null; socket: GameSocket } | null = null;
+let previewCharId: string | null = null;
+
 export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameSocket): void {
+  current = { view, myId, socket };
   const me = view.players.find((p) => p.id === myId) ?? null;
   const isHost = myId !== null && view.hostId === myId;
+
+  // default preview: what I browsed > my character > first free > first
+  if (!previewCharId) {
+    const firstFree = CHARACTERS.find(
+      (c) => !view.players.some((p) => p.characterId === c.id),
+    );
+    previewCharId = me?.characterId ?? firstFree?.id ?? CHARACTERS[0]?.id ?? null;
+  }
 
   // character cards
   const grid = $('char-grid');
@@ -61,6 +103,12 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
     card.className = 'char-card';
     if (takenBy) card.classList.add('taken');
     if (takenBy && takenBy.id === myId) card.classList.add('mine');
+    if (char.id === previewCharId) card.classList.add('preview');
+
+    const abilityIcon = document.createElement('span');
+    abilityIcon.className = 'char-ability-icon';
+    abilityIcon.textContent = ABILITY_META[char.habilidade].icon;
+    card.appendChild(abilityIcon);
 
     const img = document.createElement('img');
     img.className = 'sprite';
@@ -74,30 +122,21 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
     name.style.color = char.cor;
     card.appendChild(name);
 
-    const ability = document.createElement('div');
-    ability.className = 'char-ability';
-    const meta = ABILITY_META[char.habilidade];
-    ability.textContent = `${meta.icon} ${meta.nome}`;
-    ability.title = meta.desc;
-    card.appendChild(ability);
-
     if (takenBy) {
       const tag = document.createElement('span');
       tag.className = 'char-tag';
-      tag.textContent =
-        takenBy.id === myId ? 'você' : takenBy.isBot ? '🤖 bot' : 'escolhido';
+      tag.textContent = takenBy.id === myId ? 'você' : takenBy.isBot ? '🤖' : '✔';
       card.appendChild(tag);
-      card.style.boxShadow =
-        takenBy.id === myId ? '' : `0 0 0 2px ${char.cor}55`;
     }
 
     card.addEventListener('click', () => {
-      if (!me || me.spectator) return;
-      if (takenBy && takenBy.id !== myId) return;
-      socket.emit('lobby:selectCharacter', takenBy && takenBy.id === myId ? null : char.id);
+      previewCharId = char.id;
+      if (current) renderLobby(current.view, current.myId, current.socket);
     });
     grid.appendChild(card);
   }
+
+  renderPreview(view, me, socket);
 
   // player list
   const list = $('player-list');
@@ -163,6 +202,59 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
         : humansPending.length > 0
           ? `Esperando ficar pronto: ${humansPending.map((p) => nameOf(view, p.id)).join(', ')}`
           : 'Tudo pronto — bora! 🚀';
+  }
+}
+
+/** The big side panel: pose, name, ability and the pick action. */
+function renderPreview(
+  view: RoomView,
+  me: RoomView['players'][number] | null,
+  socket: GameSocket,
+): void {
+  const char: CharacterDef | null = characterOf(previewCharId) ?? CHARACTERS[0] ?? null;
+  if (!char) return;
+  const takenBy = view.players.find((p) => p.characterId === char.id) ?? null;
+  const isMine = takenBy !== null && takenBy.id === me?.id;
+
+  $('preview-stage').style.setProperty('--preview-glow', rgba(char.cor, 0.17));
+  const sprite = $<HTMLImageElement>('preview-sprite');
+  sprite.src = artFor(char).cardSrc;
+  sprite.alt = char.nome;
+
+  const name = $('preview-name');
+  name.textContent = char.nome;
+  name.style.color = char.cor;
+
+  $('preview-status').textContent = isMine
+    ? '⭐ este é você'
+    : takenBy
+      ? takenBy.isBot
+        ? 'já em uso por um bot 🤖'
+        : `já escolhido por ${nameOf(view, takenBy.id)}`
+      : 'livre';
+
+  const meta = ABILITY_META[char.habilidade];
+  const box = $('preview-ability');
+  box.querySelector<HTMLElement>('.ab-icon')!.textContent = meta.icon;
+  box.querySelector<HTMLElement>('.ab-name')!.textContent = meta.nome;
+  box.querySelector<HTMLElement>('.ab-desc')!.textContent = meta.desc;
+
+  const pick = $<HTMLButtonElement>('btn-pick');
+  if (isMine) {
+    pick.textContent = '✖ Soltar personagem';
+    pick.classList.remove('primary');
+    pick.disabled = false;
+    pick.onclick = () => socket.emit('lobby:selectCharacter', null);
+  } else if (takenBy) {
+    pick.textContent = 'indisponível';
+    pick.classList.remove('primary');
+    pick.disabled = true;
+    pick.onclick = null;
+  } else {
+    pick.textContent = `Escolher ${char.nome}`;
+    pick.classList.add('primary');
+    pick.disabled = me === null;
+    pick.onclick = () => socket.emit('lobby:selectCharacter', char.id);
   }
 }
 

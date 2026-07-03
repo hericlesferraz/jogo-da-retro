@@ -6,6 +6,7 @@ import { SnapshotBuffer } from './core/interpolation';
 import { connect } from './core/socket';
 import {
   hideOverlay,
+  renderIntro,
   renderLobby,
   setConnectionStatus,
   setIntermissionCountdown,
@@ -20,6 +21,8 @@ import { BomberRenderer } from './modes/bomber/render';
 
 let myId: PlayerId | null = null;
 let view: RoomView | null = null;
+/** Title screen stays up until the player clicks Entrar (or is mid-match). */
+let introDismissed = false;
 let intermissionEndsAt = 0;
 let lastCountdown: { ms: number; at: number } | null = null;
 let lastHudAt = 0;
@@ -30,9 +33,17 @@ const renderer = new BomberRenderer(canvas, (pid) =>
   characterOf(view?.players.find((p) => p.id === pid)?.characterId),
 );
 
+renderIntro(() => {
+  introDismissed = true;
+  if (view) applyScreens(view);
+});
+
 const socket = connect((ack) => {
   myId = ack.playerId;
   setConnectionStatus('conectado ✔ — manda o link pro time!');
+  // Rejoining mid-match (or already seated) skips the title screen.
+  const me = ack.room.players.find((p) => p.id === myId);
+  if (ack.room.phase !== 'lobby' || me?.characterId) introDismissed = true;
   onRoomState(ack.room);
 });
 setupInput(socket);
@@ -51,14 +62,14 @@ socket.on('game:snapshot', (snap) => {
 function onRoomState(v: RoomView): void {
   const prevPhase = view?.phase;
   view = v;
+  if (v.phase !== 'lobby') introDismissed = true; // match started while on the title
+  applyScreens(v);
   if (v.phase === 'lobby') {
-    showScreen('lobby');
     hideOverlay();
     buffer.clear();
     renderLobby(v, myId, socket);
     return;
   }
-  showScreen('game');
   resize();
   if (v.phase === 'countdown' && prevPhase !== 'countdown') buffer.clear();
   if (v.phase === 'intermission') {
@@ -67,6 +78,11 @@ function onRoomState(v: RoomView): void {
   } else if (v.phase === 'podium') {
     showPodium(v, myId, socket);
   }
+}
+
+function applyScreens(v: RoomView): void {
+  if (v.phase === 'lobby') showScreen(introDismissed ? 'lobby' : 'intro');
+  else showScreen('game');
 }
 
 function resize(): void {
