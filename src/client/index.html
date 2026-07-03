@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jogo da Retro</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        background: #1a1a2e;
+        color: #eee;
+        font-family: system-ui, sans-serif;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
+      #app { text-align: center; }
+      #status { margin-top: 0.5rem; color: #888; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <h1>🎮 Jogo da Retro</h1>
+      <p id="status">conectando…</p>
+    </div>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>
