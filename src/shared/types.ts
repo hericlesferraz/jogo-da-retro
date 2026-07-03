@@ -1,5 +1,5 @@
-// Contracts shared by client and server. This is the draft from docs/01-fundacao.md;
-// it will grow during session 2, but the GameMode boundary must hold.
+// Contracts shared by client and server. The GameMode boundary must hold:
+// the foundation owns the match flow, a mode owns what happens inside a round.
 
 export type PlayerId = string;
 
@@ -13,6 +13,8 @@ export type AbilityId =
   | 'ghost'
   | 'decoy'
   | 'bomb-kick';
+
+export type Dir = 'up' | 'down' | 'left' | 'right';
 
 /**
  * Character art. A single path is the front-facing sprite, flipped
@@ -46,12 +48,35 @@ export interface PlayerInput {
   ability: boolean;
 }
 
+export const IDLE_INPUT: PlayerInput = {
+  up: false,
+  down: false,
+  left: false,
+  right: false,
+  action: false,
+  ability: false,
+};
+
+// ---------------------------------------------------------------------------
+// Match flow (foundation)
+// ---------------------------------------------------------------------------
+
+export type MatchPhase =
+  | 'lobby'
+  | 'countdown'
+  | 'playing'
+  | 'intermission'
+  | 'podium';
+
 export interface LobbyPlayer {
   id: PlayerId;
   characterId: string | null;
   ready: boolean;
   connected: boolean;
   isHost: boolean;
+  isBot: boolean;
+  /** Joined mid-match — watches, can pick a character for the next match. */
+  spectator: boolean;
 }
 
 export interface RoundResult {
@@ -59,12 +84,118 @@ export interface RoundResult {
   placements: PlayerId[];
   /** Mode bonus: kills in Bomber, last-pass "kills" in Batata. */
   bonusPoints: Record<PlayerId, number>;
+  /** Kill count (the stat behind bonusPoints — used for display/tiebreak). */
+  kills: Record<PlayerId, number>;
+  winner: PlayerId | null;
 }
 
-export interface Scoreboard {
-  totals: Record<PlayerId, number>;
-  perRound: RoundResult[];
+export interface ScoreRow {
+  playerId: PlayerId;
+  characterId: string;
+  total: number;
+  /** Points earned in the round just finished (placement + bonus). */
+  lastRoundDelta: number;
+  roundWins: number;
+  kills: number;
+  /** 1-based position after tiebreaks (ties share the position). */
+  rank: number;
 }
+
+/**
+ * Everything structural a client needs to draw lobby/intermission/podium.
+ * Sent on join and whenever it changes — not part of the 15Hz snapshot.
+ */
+export interface RoomView {
+  phase: MatchPhase;
+  players: LobbyPlayer[];
+  hostId: PlayerId | null;
+  roundsPerMatch: number;
+  /** 1-based; 0 while in lobby. */
+  currentRound: number;
+  scoreboard: ScoreRow[];
+  lastRound: RoundResult | null;
+}
+
+// ---------------------------------------------------------------------------
+// Snapshots & events (net tick)
+// ---------------------------------------------------------------------------
+
+/** Foundation envelope sent at SNAPSHOT_HZ during countdown/playing. */
+export interface GameSnapshot {
+  /** Server clock (ms) — the client interpolates against this. */
+  t: number;
+  phase: MatchPhase;
+  /** ms until the round starts; present during countdown. */
+  countdownMsLeft?: number;
+  mode: BomberSnapshot; // union with BatataSnapshot in session 3
+}
+
+/**
+ * One-shot happenings, batched per net tick. Every client-side effect
+ * (particles, sounds, shakes) is born from an event — presentation is never
+ * derived by diffing snapshots.
+ */
+export type GameEvent =
+  | { type: 'bombPlaced'; x: number; y: number; owner: PlayerId }
+  | { type: 'explosion'; cells: { x: number; y: number }[]; owner: PlayerId }
+  | { type: 'blocksDestroyed'; cells: { x: number; y: number }[] }
+  | { type: 'powerupTaken'; x: number; y: number; kind: PowerupKind; player: PlayerId }
+  | { type: 'playerDied'; player: PlayerId; killer: PlayerId | null; cause: 'explosion' | 'crush' }
+  | { type: 'abilityUsed'; player: PlayerId; ability: AbilityId; x: number; y: number }
+  | { type: 'shieldBlocked'; player: PlayerId }
+  | { type: 'suddenDeathStarted' }
+  | { type: 'wallFell'; x: number; y: number }
+  | { type: 'roundEnded'; winner: PlayerId | null };
+
+// ---------------------------------------------------------------------------
+// Bomber Royale snapshot
+// ---------------------------------------------------------------------------
+
+export type PowerupKind = 'range' | 'bomb' | 'speed';
+
+/** Grid cell chars in BomberSnapshot.grid: row-major GRID_W × GRID_H string. */
+export const CELL = {
+  FLOOR: '.',
+  SOLID: '#', // border, pillar or fallen sudden-death wall
+  BLOCK: 'X', // destructible
+} as const;
+
+export interface BomberPlayerSnap {
+  id: PlayerId;
+  x: number; // cell units, center of the player
+  y: number;
+  dir: Dir;
+  alive: boolean;
+  /** Millis remaining on status effects; 0 when inactive. */
+  frozenMs: number;
+  ghostMs: number;
+  shieldMs: number;
+  maxBombs: number;
+  range: number;
+  speedStacks: number;
+  kills: number;
+  abilityCooldownMs: number;
+}
+
+export interface BomberSnapshot {
+  grid: string;
+  players: BomberPlayerSnap[];
+  bombs: { id: number; x: number; y: number; fuse: number }[]; // fuse: 0..1 left
+  flames: { x: number; y: number }[];
+  powerups: { x: number; y: number; kind: PowerupKind }[];
+  decoys: { id: number; characterId: string; x: number; y: number }[];
+  suddenDeath: {
+    active: boolean;
+    /** ms until it starts (when inactive). */
+    startsInMs: number;
+    /** Cell about to be crushed, so the client can flash a warning. */
+    nextCell: { x: number; y: number } | null;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// GameMode plugin contract
+// ---------------------------------------------------------------------------
 
 /**
  * A game mode plugs into the foundation loop. The foundation owns the match
@@ -78,4 +209,6 @@ export interface GameMode<Snapshot = unknown> {
   snapshot(): Snapshot;
   /** Non-null once the round has ended; foundation then scores and moves on. */
   roundResult(): RoundResult | null;
+  /** One-shot events since the last drain (foundation batches them per net tick). */
+  drainEvents(): GameEvent[];
 }

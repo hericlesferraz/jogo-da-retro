@@ -8,17 +8,18 @@ O projeto é construído em sessões de trabalho. Cada jogo fica pronto (jogáve
 - Design docs: fundação, Bomber Royale, Batata-Quente.
 - CLAUDE.md, scaffold do código verificado (dev/build/typecheck rodando).
 
-## Sessão 2 — Bomber Royale
+## Sessão 2 — Bomber Royale ✅ (03/jul/2026)
 
-1. Fundação jogável: lobby (entrar por link, escolher personagem, ready-check, host inicia), netcode (tick do servidor + snapshots + interpolação no cliente), estrutura de rodadas e placar.
-2. Modo Bomber: grade, movimento, bombas e explosões em cadeia, blocos destrutíveis, power-ups, morte súbita, habilidades dos personagens.
-3. Playtest local com bots/abas múltiplas, ajuste de tuning.
-4. Deploy (Railway ou Fly.io) e teste com link real.
-5. Criar skill de projeto para playtest (rodar server + abrir N abas).
+1. ✅ Fundação jogável: lobby (link, personagem, ready-check, host inicia, bots), netcode (tick 30Hz + snapshots 15Hz + interpolação), rodadas, placar com desempate, reconexão por token, "jogar de novo".
+2. ✅ Modo Bomber completo: movimento em grade com corner-assist, bombas, cadeia, blocos, power-ups, morte súbita em espiral, as 9 habilidades (decoy ganhou versão bônus no Bomber).
+3. ✅ Playtest: smoke headless (`npm run smoke` / `smoke:full`), partida completa no navegador com 2 humanos + 2 bots até o pódio; morte súbita validada de ponta a ponta.
+4. 🔜 Deploy: arquivos prontos (`railway.json`, `Dockerfile`, passo a passo em `docs/04-deploy.md`) — falta o usuário autenticar na plataforma e subir (± 5 min).
+5. ✅ Skill de projeto `playtest` criada (`.claude/skills/playtest/`).
 
-**Pendências do usuário para esta sessão:**
+**Pendências do usuário (não bloqueiam nada):**
 - Preencher `config/personagens.json` com as pessoas reais do time (nome, cor e habilidade de cada um).
-- Sprites pixel-art de cada pessoa (PNG 256×256, fundo transparente — specs e template de prompt em `docs/01-fundacao.md`). Não bloqueia: sem sprite o jogo usa placeholder com cor + inicial, e a arte pode chegar depois.
+- Sprites pixel-art de cada pessoa (pipeline em `docs/prompt-personagens.md`); sem sprite o jogo usa placeholder com cor + inicial.
+- Deploy com a conta do time (roteiro em `docs/04-deploy.md`).
 
 ## Sessão 3 — Batata-Quente
 

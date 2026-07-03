@@ -3,10 +3,14 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
+import type { ClientToServer, ServerToClient } from '../shared/protocol';
+import { loadCharacters } from './core/characters';
+import { Room } from './core/room';
+import { BomberMode } from './modes/bomber/mode';
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer);
+const io = new Server<ClientToServer, ServerToClient>(httpServer);
 
 // In production the server also serves the built client; in dev, Vite serves
 // the client on :5173 and proxies /socket.io here.
@@ -15,15 +19,11 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.resolve(here, '../../dist/client')));
 }
 
-io.on('connection', (socket) => {
-  console.log(`[ws] connected: ${socket.id}`);
-  socket.emit('hello', { serverTime: Date.now() });
-  socket.on('disconnect', (reason) => {
-    console.log(`[ws] disconnected: ${socket.id} (${reason})`);
-  });
-});
+const room = new Room(io, (deps) => new BomberMode(deps));
+io.on('connection', (socket) => room.handleConnection(socket));
 
 const port = Number(process.env.PORT ?? 3000);
 httpServer.listen(port, () => {
   console.log(`Jogo da Retro — server listening on :${port}`);
+  console.log(`Personagens: ${loadCharacters().map((c) => c.nome).join(', ')}`);
 });

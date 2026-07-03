@@ -37,8 +37,10 @@ Habilidades planejadas — a maioria funciona nos dois modos:
 | `push` | Empurra o jogador mais próximo para longe (ou para perto do perigo) | ✔ | ✔ |
 | `swap` | Troca de posição com um jogador aleatório vivo | ✔ | ✔ |
 | `ghost` | Atravessa blocos/obstáculos por 2s | ✔ | ✔ |
-| `decoy` | Cria um clone-isca parado por 4s | — | ✔ |
+| `decoy` | Cria um clone-isca parado por 4s | ✔ | ✔ |
 | `bomb-kick` | Chuta uma bomba na direção olhada | ✔ | — |
+
+Notas de implementação (sessão 2): `shield` fica armado por até **5s** se nada o consumir (sem isso, seria escudo permanente com cooldown); `freeze`/`push` miram o inimigo mais próximo num raio de **7 células**; habilidade que falha (sem alvo, teleporte bloqueado) **não gasta cooldown**. `decoy` ganhou versão no Bomber — clone parado que queima em explosões (inimigos gastam bomba à toa) — para ninguém ficar sem habilidade no modo.
 
 O sistema de habilidades vive na fundação (`server/core/abilities.ts`); efeitos que dependem do modo (ex.: o que `shield` bloqueia) são resolvidos por hooks que o modo implementa.
 
