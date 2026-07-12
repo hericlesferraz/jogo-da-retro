@@ -14,11 +14,12 @@ import {
   SNAPSHOT_HZ,
   TICK_MS,
 } from '../../shared/constants';
-import type { ClientToServer, JoinAck, ServerToClient } from '../../shared/protocol';
+import type { ClientToServer, RoomReply, ServerToClient } from '../../shared/protocol';
 import {
   IDLE_INPUT,
   type AbilityId,
   type GameMode,
+  type GameModeId,
   type LobbyPlayer,
   type MatchPhase,
   type PlayerId,
@@ -31,6 +32,8 @@ import { Scoreboard } from './scoring';
 
 /** How long a disconnected lobby player keeps their slot (page refresh). */
 const LOBBY_DISCONNECT_GRACE_MS = 15_000;
+/** A room with no connected humans for this long can be swept away. */
+const ROOM_ABANDON_MS = 5 * 60_000;
 
 type IoServer = Server<ClientToServer, ServerToClient>;
 type IoSocket = Socket<ClientToServer, ServerToClient>;
@@ -74,49 +77,66 @@ export class Room {
   private tickCount = 0;
   private nextPlayerSeq = 1;
   private nextBotSeq = 1;
+  private interval: NodeJS.Timeout;
+  /** Since when no human has been connected (null = someone is here). */
+  private abandonedAt: number | null = Date.now();
 
   constructor(
     private io: IoServer,
-    private createMode: (deps: ModeDeps) => ServerMode,
+    readonly code: string,
+    private modeId: GameModeId,
+    private createMode: (modeId: GameModeId, deps: ModeDeps) => ServerMode,
   ) {
-    setInterval(() => this.tick(), TICK_MS);
+    this.interval = setInterval(() => this.tick(), TICK_MS);
     if (SERVER_TICK_HZ % SNAPSHOT_HZ !== 0) {
       throw new Error('SNAPSHOT_HZ must divide SERVER_TICK_HZ');
     }
   }
 
+  /** The socket.io channel every broadcast goes to. */
+  private get channel(): string {
+    return `sala:${this.code}`;
+  }
+
+  isAbandoned(now: number): boolean {
+    return this.abandonedAt !== null && now - this.abandonedAt > ROOM_ABANDON_MS;
+  }
+
+  destroy(): void {
+    clearInterval(this.interval);
+    for (const p of this.players.values()) p.socket?.disconnect(true);
+    this.players.clear();
+  }
+
   // -------------------------------------------------------------- connection
 
-  handleConnection(socket: IoSocket): void {
-    socket.on('join', (payload, ack) => {
-      if (typeof ack !== 'function') return;
-      const token = typeof payload?.token === 'string' ? payload.token.slice(0, 64) : '';
-      if (!token) return;
-      const player = this.findByToken(token) ?? this.addPlayer(token);
-      if (player.socket && player.socket.id !== socket.id) {
-        player.socket.disconnect(true); // old tab loses; latest tab wins
-      }
-      player.socket = socket;
-      player.removeAt = null;
-      socket.data.playerId = player.id;
+  /** Seat a socket in this room (new player or reconnection by token). */
+  join(socket: IoSocket, token: string, ack: (reply: RoomReply) => void): void {
+    const player = this.findByToken(token) ?? this.addPlayer(token);
+    if (player.socket && player.socket.id !== socket.id) {
+      player.socket.disconnect(true); // old tab loses; latest tab wins
+    }
+    player.socket = socket;
+    player.removeAt = null;
+    socket.data.playerId = player.id;
+    socket.join(this.channel);
+    this.abandonedAt = null;
 
-      this.electHostIfNeeded();
-      const reply: JoinAck = { playerId: player.id, room: this.view() };
-      ack(reply);
-      this.broadcastView();
+    this.electHostIfNeeded();
+    ack({ ok: true, playerId: player.id, room: this.view() });
+    this.broadcastView();
 
-      socket.on('lobby:selectCharacter', (characterId) =>
-        this.selectCharacter(player.id, characterId),
-      );
-      socket.on('lobby:ready', (ready) => this.setReady(player.id, ready === true));
-      socket.on('lobby:rounds', (rounds) => this.setRounds(player.id, rounds));
-      socket.on('lobby:addBot', () => this.addBot(player.id));
-      socket.on('lobby:removeBot', (pid) => this.removeBot(player.id, pid));
-      socket.on('lobby:start', () => this.startMatch(player.id));
-      socket.on('podium:playAgain', () => this.playAgain(player.id));
-      socket.on('input', (input) => this.setInput(player.id, input));
-      socket.on('disconnect', () => this.handleDisconnect(player.id, socket));
-    });
+    socket.on('lobby:selectCharacter', (characterId) =>
+      this.selectCharacter(player.id, characterId),
+    );
+    socket.on('lobby:ready', (ready) => this.setReady(player.id, ready === true));
+    socket.on('lobby:rounds', (rounds) => this.setRounds(player.id, rounds));
+    socket.on('lobby:addBot', () => this.addBot(player.id));
+    socket.on('lobby:removeBot', (pid) => this.removeBot(player.id, pid));
+    socket.on('lobby:start', () => this.startMatch(player.id));
+    socket.on('podium:playAgain', () => this.playAgain(player.id));
+    socket.on('input', (input) => this.setInput(player.id, input));
+    socket.on('disconnect', () => this.handleDisconnect(player.id, socket));
   }
 
   private findByToken(token: string): PlayerState | null {
@@ -150,6 +170,8 @@ export class Room {
       player.removeAt = Date.now() + LOBBY_DISCONNECT_GRACE_MS;
       player.ready = false;
     }
+    const anyHuman = [...this.players.values()].some((p) => !p.isBot && p.socket);
+    if (!anyHuman && this.abandonedAt === null) this.abandonedAt = Date.now();
     this.electHostIfNeeded();
     this.broadcastView();
   }
@@ -267,7 +289,7 @@ export class Room {
     this.scoreboard.reset();
     this.lastRound = null;
     for (const id of this.participants) this.scoreboard.track(id);
-    this.mode = this.createMode({
+    this.mode = this.createMode(this.modeId, {
       abilityOf: (id) => {
         const charId = this.players.get(id)?.characterId;
         return charId ? (getCharacter(charId)?.habilidade ?? null) : null;
@@ -378,8 +400,8 @@ export class Room {
   private emitNetFrame(): void {
     if (!this.mode) return;
     const events = this.mode.drainEvents();
-    if (events.length > 0) this.io.emit('game:events', events);
-    this.io.emit('game:snapshot', {
+    if (events.length > 0) this.io.to(this.channel).emit('game:events', events);
+    this.io.to(this.channel).emit('game:snapshot', {
       t: Date.now(),
       phase: this.phase,
       ...(this.phase === 'countdown'
@@ -416,7 +438,9 @@ export class Room {
       spectator: p.spectator,
     }));
     return {
+      code: this.code,
       phase: this.phase,
+      modeId: this.modeId,
       players,
       hostId: this.hostId,
       roundsPerMatch: this.roundsPerMatch,
@@ -429,6 +453,6 @@ export class Room {
   }
 
   private broadcastView(): void {
-    this.io.emit('room:state', this.view());
+    this.io.to(this.channel).emit('room:state', this.view());
   }
 }

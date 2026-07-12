@@ -10,7 +10,7 @@ import type {
   PlayerId,
 } from '../../../shared/types';
 import { ABILITY_META, characterOf, POWERUP_META } from '../../core/characters';
-import { artFor } from '../../core/sprites';
+import { artFor, spriteBox } from '../../core/sprites';
 
 const { GRID_W: W, GRID_H: H } = BOMBER;
 
@@ -379,9 +379,8 @@ export class BomberRenderer {
 
     ctx.save();
     if (p.ghostMs > 0) ctx.globalAlpha = 0.45 + 0.1 * Math.sin(now / 120);
-    const { img, flip } = artFor(char).view(p.dir);
-    const h = cell * 1.15;
-    const w = h;
+    const { img, flip, aspect } = artFor(char).view(p.dir);
+    const { w, h } = spriteBox(aspect, cell * 1.15, cell * 1.05);
     ctx.translate(px, py + cell * 0.42 - bob);
     if (flip) ctx.scale(-1, 1);
     ctx.drawImage(img, -w / 2, -h, w, h);
@@ -418,12 +417,12 @@ export class BomberRenderer {
     ctx.beginPath();
     ctx.ellipse(px, py + cell * 0.36, cell * 0.3, cell * 0.12, 0, 0, Math.PI * 2);
     ctx.fill();
-    const { img, flip } = artFor(char).view('down');
-    const h = cell * 1.15;
+    const { img, flip, aspect } = artFor(char).view('down');
+    const { w, h } = spriteBox(aspect, cell * 1.15, cell * 1.05);
     ctx.save();
     ctx.translate(px, py + cell * 0.42);
     if (flip) ctx.scale(-1, 1);
-    ctx.drawImage(img, -h / 2, -h, h, h);
+    ctx.drawImage(img, -w / 2, -h, w, h);
     ctx.restore();
     this.nameTag(char.nome, char.cor, px, py - cell * 0.85);
     void now;

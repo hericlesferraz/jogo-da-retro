@@ -1,35 +1,103 @@
 // Character art loading + the code-drawn placeholder (cor + inicial), so
 // development and the game itself never block on missing art.
+//
+// A mode can have specialized skins: art dropped in a subdirectory with the
+// same file names (e.g. /personagens/batata/<id>-down.png) is picked up by
+// artFor(char, 'batata'), falling back per-image to the base art while it
+// loads or when it doesn't exist.
 
 import type { CharacterDef, Dir } from '../../shared/types';
 
 export interface CharacterArt {
-  /** Best image for a facing direction (placeholder until art loads). */
-  view(dir: Dir): { img: CanvasImageSource; flip: boolean };
+  /** Best image for a facing direction (placeholder until art loads).
+   * `aspect` = width/height of the source — sliced sprites are tight crops
+   * of arbitrary proportions, so renderers must not assume a square. */
+  view(dir: Dir): { img: CanvasImageSource; flip: boolean; aspect: number };
   /** src for lobby cards / scoreboards. */
   cardSrc: string;
   isPlaceholder: boolean;
 }
 
+/**
+ * Contain-fit a sprite into a target box (feet anchored): full height by
+ * default, shrinking only when the art is unusually wide.
+ */
+export function spriteBox(
+  aspect: number,
+  maxH: number,
+  maxW: number,
+): { w: number; h: number } {
+  let h = maxH;
+  let w = h * aspect;
+  if (w > maxW) {
+    w = maxW;
+    h = w / aspect;
+  }
+  return { w, h };
+}
+
 const cache = new Map<string, CharacterArt>();
 
-export function artFor(char: CharacterDef): CharacterArt {
-  const cached = cache.get(char.id);
+/** "/personagens/x.png" + "batata" → "/personagens/batata/x.png". */
+function variantPath(path: string, variant: string): string {
+  return path.replace(/\/([^/]+)$/, `/${variant}/$1`);
+}
+
+export function artFor(char: CharacterDef, variant?: string): CharacterArt {
+  const key = variant ? `${variant}:${char.id}` : char.id;
+  const cached = cache.get(key);
   if (cached) return cached;
+
+  // Variant skins only exist for real art; placeholders stay as they are.
+  if (variant && char.sprite) {
+    const base = artFor(char);
+    const sprite = char.sprite;
+    const views: Partial<Record<Dir, HTMLImageElement>> =
+      typeof sprite === 'string'
+        ? { down: loadImage(variantPath(sprite, variant)) }
+        : {
+            down: loadImage(variantPath(sprite.down, variant)),
+            up: loadImage(variantPath(sprite.up, variant)),
+            left: loadImage(variantPath(sprite.left, variant)),
+            right: loadImage(variantPath(sprite.right, variant)),
+          };
+    const single = typeof sprite === 'string';
+    const art: CharacterArt = {
+      view: (dir) => {
+        const img = single ? views.down : views[dir];
+        if (img && ready(img)) {
+          return { img, flip: single && dir === 'left', aspect: aspectOf(img) };
+        }
+        if (!single && views.down && ready(views.down)) {
+          return { img: views.down, flip: false, aspect: aspectOf(views.down) };
+        }
+        return base.view(dir);
+      },
+      cardSrc: base.cardSrc,
+      isPlaceholder: base.isPlaceholder,
+    };
+    cache.set(key, art);
+    return art;
+  }
 
   const placeholder = drawPlaceholder(char);
   let art: CharacterArt;
 
+  const asPlaceholder = { img: placeholder, flip: false, aspect: 1 };
+
   if (!char.sprite) {
     art = {
-      view: () => ({ img: placeholder, flip: false }),
+      view: () => asPlaceholder,
       cardSrc: placeholder.toDataURL(),
       isPlaceholder: true,
     };
   } else if (typeof char.sprite === 'string') {
     const img = loadImage(char.sprite);
     art = {
-      view: (dir) => (ready(img) ? { img, flip: dir === 'left' } : { img: placeholder, flip: false }),
+      view: (dir) =>
+        ready(img)
+          ? { img, flip: dir === 'left', aspect: aspectOf(img) }
+          : asPlaceholder,
       cardSrc: char.sprite,
       isPlaceholder: false,
     };
@@ -43,17 +111,21 @@ export function artFor(char: CharacterDef): CharacterArt {
     art = {
       view: (dir) => {
         const img = views[dir];
-        if (ready(img)) return { img, flip: false };
+        if (ready(img)) return { img, flip: false, aspect: aspectOf(img) };
         return ready(views.down)
-          ? { img: views.down, flip: false }
-          : { img: placeholder, flip: false };
+          ? { img: views.down, flip: false, aspect: aspectOf(views.down) }
+          : asPlaceholder;
       },
       cardSrc: char.sprite.down,
       isPlaceholder: false,
     };
   }
-  cache.set(char.id, art);
+  cache.set(key, art);
   return art;
+}
+
+function aspectOf(img: HTMLImageElement): number {
+  return img.naturalWidth / img.naturalHeight;
 }
 
 function loadImage(src: string): HTMLImageElement {

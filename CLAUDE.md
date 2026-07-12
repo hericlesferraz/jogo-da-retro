@@ -1,6 +1,6 @@
 # Jogo da Retro
 
-Jogo multiplayer em tempo real para a retrospectiva do time: ~8 jogadores, partida de 5–10 minutos, todo mundo entra por um link no navegador. Regra do ritual do time: o último colocado do ranking é o responsável pelo jogo da próxima retro.
+Jogo multiplayer em tempo real para a retrospectiva do time: ~8 jogadores, partida de 5–10 minutos, todo mundo entra pelo navegador — quem cria a sala escolhe o jogo na tela inicial e compartilha um código de 4 letras. Regra do ritual do time: o último colocado do ranking é o responsável pelo jogo da próxima retro.
 
 São dois jogos construídos sobre uma **fundação compartilhada**:
 
@@ -23,7 +23,7 @@ src/server/core/     lobby, sala, rodadas, placar, loop de tick, habilidades
 src/server/modes/    um diretório por jogo (bomber/, batata/)
 src/client/core/     conexão, captura de input, telas de lobby/placar/pódio
 src/client/modes/    renderizador Canvas de cada jogo
-src/client/public/personagens/  sprites finais do time (transparentes, 4 vistas por pessoa)
+src/client/public/personagens/  sprites finais do time (transparentes, 4 vistas por pessoa; subpasta <modo>/ = skins opcionais do modo, com fallback)
 config/personagens.json  pessoas do time (nome, cor, sprite, habilidade)
 art-raw/             sheets brutas geradas por IA (fonte da arte; pipeline em docs/prompt-personagens.md)
 tools/slice_sprites.py  fatia uma sheet em sprites transparentes por vista

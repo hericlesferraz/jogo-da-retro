@@ -21,11 +21,17 @@ O projeto é construído em sessões de trabalho. Cada jogo fica pronto (jogáve
 - Sprites pixel-art de cada pessoa (pipeline em `docs/prompt-personagens.md`); sem sprite o jogo usa placeholder com cor + inicial.
 - Deploy com a conta do time (roteiro em `docs/04-deploy.md`).
 
-## Sessão 3 — Batata-Quente
+## Sessão 3 — Batata-Quente (12/jul/2026)
 
-1. Modo batata sobre a fundação pronta: movimento livre, portador/repasse, timer oculto, encolhimento da arena.
-2. Reaproveitar personagens, habilidades, placar e telas.
-3. Playtest, tuning e deploy.
+1. ✅ Modo batata completo: movimento livre com colisão círculo-retângulo, portador/repasse por toque, imunidade pós-repasse, fuse oculto 15–25s com pisca por `heat`, encolhimento animado da arena por eliminação, anti-camping, truque do decoy (batata no chão), shield bloqueia repasse, bot próprio (caça/foge/esquiva). Snapshot virou união discriminada por `modeId`.
+2. ✅ **Salas por código** (feedback de playtest): cria-se a sala na tela inicial escolhendo o jogo, código de 4 letras para o time entrar; salas isoladas, GC de salas abandonadas, reconexão por token + código na URL.
+3. ✅ **Esquiva** (feedback de playtest): espaço = imunidade breve + impulso com cooldown 4s — contrajogada à vantagem do portador.
+4. ✅ Correções de playtest: proporção dos sprites na arena (desenho respeita o aspect da arte), portador não se engana com o próprio decoy, jogador não fica preso em obstáculo quando a parede encolhe.
+5. ✅ Skins por modo: arte opcional em `personagens/batata/` com fallback automático para a arte padrão.
+6. ✅ Smoke tests: `npm run smoke[:full]` e `smoke:batata[:full]` — cobrindo criação/entrada de sala, código inválido e o ciclo de cada modo.
+7. 🔜 Playtest em grupo, tuning dos valores jogando (esquiva, fuse, encolhimento) e deploy (roteiro em `docs/04-deploy.md`).
+
+**Decisões da sessão** em `docs/03-batata-quente.md` → "Notas de implementação".
 
 ## Sessão 4+ — Polimento (opcional, quando for a vez dele de novo)
 

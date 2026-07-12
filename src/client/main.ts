@@ -1,9 +1,10 @@
 import { INTERMISSION_MS } from '../shared/constants';
-import type { PlayerId, RoomView } from '../shared/types';
+import type { RoomReply } from '../shared/protocol';
+import type { GameModeId, PlayerId, RoomView } from '../shared/types';
 import { characterOf } from './core/characters';
 import { setupInput } from './core/input';
 import { SnapshotBuffer } from './core/interpolation';
-import { connect } from './core/socket';
+import { connect, playerToken } from './core/socket';
 import {
   hideOverlay,
   renderIntro,
@@ -17,41 +18,65 @@ import {
   toast,
   updateHud,
 } from './core/ui';
+import { BatataRenderer } from './modes/batata/render';
 import { BomberRenderer } from './modes/bomber/render';
+
+const ROOM_KEY = 'retro-sala';
 
 let myId: PlayerId | null = null;
 let view: RoomView | null = null;
-/** Title screen stays up until the player clicks Entrar (or is mid-match). */
-let introDismissed = false;
+/** In a room (false on the title screen and while reconnecting). */
+let seated = false;
+/** Auto-join only with an explicit ?sala= in the URL (refresh/shared link).
+ * A bare visit always lands on the title — the last code only pre-fills
+ * the join field, so nobody gets trapped in a stale room. */
+let roomCode: string | null =
+  new URLSearchParams(location.search).get('sala')?.toUpperCase() ?? null;
 let intermissionEndsAt = 0;
 let lastCountdown: { ms: number; at: number } | null = null;
 let lastHudAt = 0;
 
 const buffer = new SnapshotBuffer();
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
-const renderer = new BomberRenderer(canvas, (pid) =>
-  characterOf(view?.players.find((p) => p.id === pid)?.characterId),
-);
+const charOfPlayer = (pid: PlayerId) =>
+  characterOf(view?.players.find((p) => p.id === pid)?.characterId);
+const renderers = {
+  bomber: new BomberRenderer(canvas, charOfPlayer),
+  batata: new BatataRenderer(canvas, charOfPlayer),
+};
+const activeRenderer = () => renderers[view?.modeId ?? 'bomber'];
 
-renderIntro(() => {
-  introDismissed = true;
-  if (view) applyScreens(view);
+const socket = connect();
+renderIntro({
+  onCreate: (mode: GameModeId) =>
+    socket.emit('room:create', { token: playerToken(), mode }, onRoomReply),
+  onJoin: (code: string) =>
+    socket.emit('room:join', { token: playerToken(), code }, onRoomReply),
+  initialCode: roomCode ?? localStorage.getItem(ROOM_KEY) ?? '',
 });
 
-const socket = connect((ack) => {
-  myId = ack.playerId;
-  setConnectionStatus('conectado ✔ — manda o link pro time!');
-  // Rejoining mid-match (or already seated) skips the title screen.
-  const me = ack.room.players.find((p) => p.id === myId);
-  if (ack.room.phase !== 'lobby' || me?.characterId) introDismissed = true;
-  onRoomState(ack.room);
+function leaveRoom(): void {
+  localStorage.removeItem(ROOM_KEY);
+  location.href = location.pathname; // reload without ?sala — back to the title
+}
+(document.getElementById('btn-leave') as HTMLButtonElement).onclick = leaveRoom;
+
+socket.on('connect', () => {
+  setConnectionStatus('conectado ✔');
+  // First load with a remembered code, or a reconnection: retake the seat.
+  if (roomCode && !seated) {
+    socket.emit('room:join', { token: playerToken(), code: roomCode }, onRoomReply);
+  }
 });
 setupInput(socket);
 
-socket.on('disconnect', () => setConnectionStatus('desconectado — reconectando…'));
+socket.on('disconnect', () => {
+  seated = false;
+  setConnectionStatus('desconectado — reconectando…');
+});
 socket.on('refused', toast);
 socket.on('room:state', onRoomState);
-socket.on('game:events', (events) => renderer.handleEvents(events));
+socket.on('game:events', (events) => activeRenderer().handleEvents(events));
 socket.on('game:snapshot', (snap) => {
   buffer.push(snap);
   if (snap.countdownMsLeft !== undefined) {
@@ -59,10 +84,28 @@ socket.on('game:snapshot', (snap) => {
   }
 });
 
+function onRoomReply(reply: RoomReply): void {
+  if (!reply.ok) {
+    seated = false;
+    roomCode = null;
+    localStorage.removeItem(ROOM_KEY);
+    history.replaceState(null, '', location.pathname);
+    toast(reply.error);
+    showScreen('intro');
+    return;
+  }
+  seated = true;
+  myId = reply.playerId;
+  roomCode = reply.room.code;
+  localStorage.setItem(ROOM_KEY, roomCode);
+  history.replaceState(null, '', `?sala=${roomCode}`);
+  setConnectionStatus(`conectado ✔ — sala ${roomCode}`);
+  onRoomState(reply.room);
+}
+
 function onRoomState(v: RoomView): void {
   const prevPhase = view?.phase;
   view = v;
-  if (v.phase !== 'lobby') introDismissed = true; // match started while on the title
   applyScreens(v);
   if (v.phase === 'lobby') {
     hideOverlay();
@@ -76,24 +119,24 @@ function onRoomState(v: RoomView): void {
     intermissionEndsAt = performance.now() + INTERMISSION_MS;
     showIntermission(v);
   } else if (v.phase === 'podium') {
-    showPodium(v, myId, socket);
+    showPodium(v, myId, socket, leaveRoom);
   }
 }
 
 function applyScreens(v: RoomView): void {
-  if (v.phase === 'lobby') showScreen(introDismissed ? 'lobby' : 'intro');
-  else showScreen('game');
+  if (!seated) showScreen('intro');
+  else showScreen(v.phase === 'lobby' ? 'lobby' : 'game');
 }
 
 function resize(): void {
-  renderer.resize(window.innerWidth - 24, window.innerHeight - 130);
+  activeRenderer().resize(window.innerWidth - 24, window.innerHeight - 130);
 }
 window.addEventListener('resize', resize);
 resize();
 
 function frame(now: number): void {
   requestAnimationFrame(frame);
-  if (!view || view.phase === 'lobby') return;
+  if (!seated || !view || view.phase === 'lobby') return;
 
   if (view.phase === 'countdown' && lastCountdown) {
     showCountdown(lastCountdown.ms - (now - lastCountdown.at));
@@ -104,7 +147,8 @@ function frame(now: number): void {
   }
 
   const snap = buffer.sample();
-  if (snap) renderer.render(snap, myId);
+  if (snap?.modeId === 'batata') renderers.batata.render(snap, myId);
+  else if (snap) renderers.bomber.render(snap, myId);
 
   if (now - lastHudAt > 100) {
     lastHudAt = now;

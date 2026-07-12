@@ -4,14 +4,15 @@ Tudo que os dois jogos usam em comum. Um "jogo" aqui é um **modo** plugado nest
 
 ## Fluxo de uma partida
 
-1. **Lobby** — cada pessoa abre o link, vê a lista de personagens do time (`config/personagens.json`), escolhe o seu (sem repetição) e marca "pronto". O primeiro a entrar é o host e tem o botão de iniciar. O host também escolhe o número de rodadas (padrão 4).
-2. **Rodada** — contagem de 3s, o modo roda até declarar fim (último vivo). Duração alvo: ≤ 2,5 min, garantida por mecânica de pressão do próprio modo (morte súbita / encolhimento).
-3. **Intervalo** — placar parcial na tela por ~12s, próxima rodada começa sozinha.
-4. **Fim** — após todas as rodadas, pódio com ranking acumulado. O último colocado é destacado ("o próximo jogo é com você 😈").
+1. **Sala** — na tela inicial, uma pessoa **cria a sala escolhendo o jogo** (Bomber Royale ou Batata-Quente — um único deploy serve os dois) e recebe um **código de 4 letras**; o resto do time digita o código para entrar (o código também vai na URL, então recarregar reconecta). O jogo é fixo por sala — para trocar, cria-se outra sala.
+2. **Lobby** — cada pessoa vê a lista de personagens do time (`config/personagens.json`), escolhe o seu (sem repetição) e marca "pronto". Quem criou a sala é o host, escolhe o número de rodadas (padrão 4) e tem o botão de iniciar.
+3. **Rodada** — contagem de 3s, o modo roda até declarar fim (último vivo). Duração alvo: ≤ 2,5 min, garantida por mecânica de pressão do próprio modo (morte súbita / encolhimento).
+4. **Intervalo** — placar parcial na tela por ~12s, próxima rodada começa sozinha.
+5. **Fim** — após todas as rodadas, pódio com ranking acumulado. O último colocado é destacado ("o próximo jogo é com você 😈").
 
 ## Personagens e habilidades
 
-Cada personagem representa uma pessoa do time: `{ id, nome, cor, sprite, habilidade }`. A habilidade é o único botão além de mover (+ o botão de bomba no Bomber) e tem **cooldown de ~10s**, mostrado no HUD.
+Cada personagem representa uma pessoa do time: `{ id, nome, cor, sprite, habilidade }`. A habilidade fica no Shift/E nos dois modos e tem **cooldown de ~10s**, mostrado no HUD; o espaço é a ação primária de cada modo (bomba no Bomber, esquiva na Batata).
 
 ### Arte dos personagens
 
@@ -24,6 +25,7 @@ Como no jogo anterior do time, cada personagem é uma **arte pixel-art de corpo 
 - **Upgrade opcional para 4 lados**: o campo `sprite` aceita tanto um caminho único (vista frontal) quanto um mapa `{ down, up, left, right }` (`SpriteRef` em `src/shared/types.ts`). Trocar no JSON basta, sem mudança de código. (Validado: o pipeline de sheets já entrega as 4 vistas.)
 - **Upgrade futuro para animação de quadros** (andar, idle): evoluir `SpriteRef` para aceitar uma lista de frames por direção. A mudança fica restrita ao schema do config + o desenho do jogador no renderizador do cliente — o servidor não conhece arte. Animações de **efeitos** (explosão, dash, congelamento) nem dependem disso: são disparadas pelos eventos do servidor e desenhadas proceduralmente ou com spritesheets próprios, 100% no cliente.
 - **Placeholder**: enquanto a arte de alguém não existe (`sprite: null`), o jogo desenha um boneco simples com a cor + inicial do nome. Desenvolvimento nunca bloqueia em arte.
+- **Skins por modo (opcional)**: um modo pode ter arte especializada — mesmos arquivos, num subdiretório com o nome do modo (ex.: `personagens/batata/<id>-down.png`). O cliente usa a skin quando ela existe e cai para a arte padrão imagem a imagem. Nada muda no config.
 - **Produção da arte** (pipeline oficial): gerar com IA de imagem (Gemini), passando **uma imagem de referência de estilo + a foto da pessoa**, pedindo uma *character sheet* com **3 vistas do mesmo personagem em uma única imagem** (frontal, lateral direita, costas — lado a lado, mesma escala, pés alinhados, fundo branco puro, sem texto/sombra). Gerar as vistas juntas é o que garante consistência do personagem; a 4ª direção (esquerda) é a lateral flipada. O slot de tema da roupa/acessório deve casar com a habilidade da pessoa (freeze → mago de gelo, etc.). O prompt completo fica em `docs/prompt-personagens.md`. Depois, um script fatia a sheet em PNGs individuais e remove o fundo branco. Só a vista frontal é indispensável — sheets com vistas ruins não bloqueiam nada.
 
 Habilidades planejadas — a maioria funciona nos dois modos:
@@ -56,8 +58,8 @@ O sistema de habilidades vive na fundação (`server/core/abilities.ts`); efeito
 - Cliente envia **estado de input** (teclas seguradas) em keydown/keyup, não comandos por frame.
 - Cliente renderiza com **interpolação** entre os 2 últimos snapshots (~100ms de buffer). Sem predição na v1 — com movimento simples e ping doméstico, interpolação basta.
 - Além dos snapshots, o servidor emite **eventos pontuais** (bomba explodiu, jogador eliminado, power-up pego, repasse da batata) — é o gancho do cliente para animações, partículas e sons. Apresentação nunca é derivada "adivinhando" diffs de snapshot; todo efeito nasce de um evento.
-- **Reconexão**: token no localStorage; quem cair volta no mesmo personagem com o estado atual. Jogador desconectado no meio da rodada fica parado (e provavelmente morre — azar).
-- Uma sala única por servidor é suficiente (um time), mas o código usa uma abstração `Room` para não fechar portas.
+- **Reconexão**: o auto-reingresso acontece **só quando a URL tem `?sala=`** (recarregar a página mantém, então quem cai volta no mesmo personagem). Abrir o site "limpo" sempre mostra a tela inicial — o último código visitado só pré-preenche o campo de entrar (ninguém fica preso numa sala velha). "Sair da sala" (lobby e pódio) limpa tudo e volta à tela inicial. Jogador desconectado no meio da rodada fica parado (e provavelmente morre — azar).
+- **Salas por código**: o servidor mantém várias salas isoladas (`RoomManager` em `server/core/rooms.ts`), cada uma com seu jogo, código de 4 letras (sem 0/O/1/I — é lido em voz alta) e loop próprio; salas sem humanos conectados por 5 min são removidas.
 
 ## Áudio
 

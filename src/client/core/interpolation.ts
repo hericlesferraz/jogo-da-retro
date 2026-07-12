@@ -2,7 +2,12 @@
 // blending entity positions between the two snapshots around that instant.
 
 import { INTERP_DELAY_MS } from '../../shared/constants';
-import type { BomberSnapshot, GameSnapshot } from '../../shared/types';
+import type {
+  BatataSnapshot,
+  BomberSnapshot,
+  GameSnapshot,
+  ModeSnapshot,
+} from '../../shared/types';
 
 interface Entry {
   snap: GameSnapshot;
@@ -29,7 +34,7 @@ export class SnapshotBuffer {
   }
 
   /** Interpolated mode snapshot for rendering (null before 2 snapshots). */
-  sample(): BomberSnapshot | null {
+  sample(): ModeSnapshot | null {
     const n = this.entries.length;
     if (n === 0) return null;
     if (n === 1) return this.entries[0]!.snap.mode;
@@ -51,7 +56,13 @@ export class SnapshotBuffer {
   }
 }
 
-function blend(a: BomberSnapshot, b: BomberSnapshot, t: number): BomberSnapshot {
+function blend(a: ModeSnapshot, b: ModeSnapshot, t: number): ModeSnapshot {
+  if (a.modeId === 'bomber' && b.modeId === 'bomber') return blendBomber(a, b, t);
+  if (a.modeId === 'batata' && b.modeId === 'batata') return blendBatata(a, b, t);
+  return b; // mode changed between snapshots — nothing to interpolate
+}
+
+function blendBomber(a: BomberSnapshot, b: BomberSnapshot, t: number): BomberSnapshot {
   const oldPlayers = new Map(a.players.map((p) => [p.id, p]));
   const oldBombs = new Map(a.bombs.map((x) => [x.id, x]));
   const oldDecoys = new Map(a.decoys.map((d) => [d.id, d]));
@@ -73,6 +84,41 @@ function blend(a: BomberSnapshot, b: BomberSnapshot, t: number): BomberSnapshot 
       if (!prev) return d;
       return { ...d, x: lerp(prev.x, d.x, t), y: lerp(prev.y, d.y, t) };
     }),
+  };
+}
+
+function blendBatata(a: BatataSnapshot, b: BatataSnapshot, t: number): BatataSnapshot {
+  const oldPlayers = new Map(a.players.map((p) => [p.id, p]));
+  const oldDecoys = new Map(a.decoys.map((d) => [d.id, d]));
+  const potato = { ...b.potato };
+  // The potato glides with its holder / on the ground; passes are teleports.
+  if (
+    a.potato.holder === b.potato.holder &&
+    Math.hypot(b.potato.x - a.potato.x, b.potato.y - a.potato.y) <= TELEPORT_DIST
+  ) {
+    potato.x = lerp(a.potato.x, b.potato.x, t);
+    potato.y = lerp(a.potato.y, b.potato.y, t);
+  }
+  return {
+    ...b,
+    players: b.players.map((p) => {
+      const prev = oldPlayers.get(p.id);
+      if (!prev || !p.alive) return p;
+      if (Math.hypot(p.x - prev.x, p.y - prev.y) > TELEPORT_DIST) return p;
+      return { ...p, x: lerp(prev.x, p.x, t), y: lerp(prev.y, p.y, t) };
+    }),
+    potato,
+    decoys: b.decoys.map((d) => {
+      const prev = oldDecoys.get(d.id);
+      if (!prev) return d;
+      return { ...d, x: lerp(prev.x, d.x, t), y: lerp(prev.y, d.y, t) };
+    }),
+    bounds: {
+      minX: lerp(a.bounds.minX, b.bounds.minX, t),
+      minY: lerp(a.bounds.minY, b.bounds.minY, t),
+      maxX: lerp(a.bounds.maxX, b.bounds.maxX, t),
+      maxY: lerp(a.bounds.maxY, b.bounds.maxY, t),
+    },
   };
 }
 

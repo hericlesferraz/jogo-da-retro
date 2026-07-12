@@ -9,7 +9,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/socket.io': {
-        target: 'http://localhost:3000',
+        // Same PORT the game server reads, so `PORT=3210 npm run dev` works
+        // when :3000 is taken by something else.
+        target: `http://localhost:${process.env.PORT ?? 3000}`,
         ws: true,
       },
     },

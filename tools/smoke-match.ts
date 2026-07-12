@@ -1,17 +1,19 @@
 // Headless smoke test: boots the server, joins 2 scripted clients + 2 bots,
-// starts a match and asserts the core loop (lobby → countdown → playing →
-// bomb → explosion → death). With --full it waits for the whole match to
-// reach the podium (bots + sudden death guarantee it ends).
+// starts a match and asserts the core loop. Bomber: lobby → countdown →
+// playing → bomb → explosion → death. Batata (--batata): potato spawn →
+// touch pass → explosion → elimination (bots do the chasing). With --full
+// it waits for the whole match to reach the podium.
 //
-//   npx tsx tools/smoke-match.ts [--full]
+//   npx tsx tools/smoke-match.ts [--batata] [--full]
 
 import { spawn } from 'node:child_process';
 import { io, type Socket } from 'socket.io-client';
-import type { JoinAck } from '../src/shared/protocol';
-import type { GameEvent, MatchPhase, RoomView } from '../src/shared/types';
+import type { RoomReply } from '../src/shared/protocol';
+import type { GameEvent, MatchPhase, PlayerId, RoomView } from '../src/shared/types';
 
 const PORT = 3099;
 const FULL = process.argv.includes('--full');
+const MODE = process.argv.includes('--batata') ? 'batata' : 'bomber';
 
 function fail(msg: string): never {
   console.error(`✘ ${msg}`);
@@ -30,24 +32,30 @@ const withTimeout = <T>(p: Promise<T>, ms: number, what: string): Promise<T> =>
 
 interface Client {
   socket: Socket;
-  ack: JoinAck;
+  playerId: PlayerId;
   view: RoomView;
   events: GameEvent[];
 }
 
-async function joinClient(token: string): Promise<Client> {
+/** code === null → create a room for MODE; otherwise join the given room. */
+async function joinClient(token: string, code: string | null): Promise<Client> {
   const socket = io(`http://localhost:${PORT}`, { transports: ['websocket'] });
-  const client: Client = { socket, ack: null as never, view: null as never, events: [] };
+  const client: Client = { socket, playerId: '', view: null as never, events: [] };
   socket.on('room:state', (v: RoomView) => (client.view = v));
   socket.on('game:events', (evs: GameEvent[]) => client.events.push(...evs));
-  client.ack = await withTimeout(
-    new Promise<JoinAck>((resolve) => {
-      socket.on('connect', () => socket.emit('join', { token }, resolve));
+  const reply = await withTimeout(
+    new Promise<RoomReply>((resolve) => {
+      socket.on('connect', () => {
+        if (code === null) socket.emit('room:create', { token, mode: MODE }, resolve);
+        else socket.emit('room:join', { token, code }, resolve);
+      });
     }),
     5000,
-    `join ${token}`,
+    `entrar na sala (${token})`,
   );
-  client.view = client.ack.room;
+  if (!reply.ok) fail(`entrada na sala recusada: ${reply.error}`);
+  client.playerId = reply.playerId;
+  client.view = reply.room;
   return client;
 }
 
@@ -93,13 +101,28 @@ async function main(): Promise<void> {
   );
   ok('servidor de teste no ar');
 
-  const alice = await joinClient('token-alice');
-  const bob = await joinClient('token-bob');
-  if (alice.ack.playerId === bob.ack.playerId) fail('tokens distintos, mesmo player');
-  if (!alice.view.players.find((p) => p.id === alice.ack.playerId)?.isHost) {
-    fail('primeiro a entrar deveria ser host');
+  const alice = await joinClient('token-alice', null);
+  const code = alice.view.code;
+  if (!/^[A-Z2-9]{4}$/.test(code)) fail(`código de sala inválido: ${code}`);
+  if (alice.view.modeId !== MODE) fail(`sala criada com modo ${alice.view.modeId}`);
+  const bob = await joinClient('token-bob', code);
+  if (alice.playerId === bob.playerId) fail('tokens distintos, mesmo player');
+  if (!alice.view.players.find((p) => p.id === alice.playerId)?.isHost) {
+    fail('quem criou a sala deveria ser host');
   }
-  ok('2 clientes no lobby, host correto');
+  const ghost = io(`http://localhost:${PORT}`, { transports: ['websocket'] });
+  const badReply = await withTimeout(
+    new Promise<RoomReply>((resolve) => {
+      ghost.on('connect', () =>
+        ghost.emit('room:join', { token: 'token-ghost', code: 'ZZZZ' }, resolve),
+      );
+    }),
+    5000,
+    'join em sala inexistente',
+  );
+  if (badReply.ok) fail('sala inexistente deveria recusar');
+  ghost.disconnect();
+  ok(`sala ${code} criada (${MODE}), 2 clientes dentro, host correto, código errado recusado`);
 
   alice.socket.emit('lobby:selectCharacter', 'exemplo-1');
   bob.socket.emit('lobby:selectCharacter', 'exemplo-2');
@@ -114,7 +137,7 @@ async function main(): Promise<void> {
   await waitFor(alice, 'bots no lobby', 3000, () =>
     alice.view.players.filter((p) => p.isBot).length === 2,
   );
-  ok('personagens escolhidos, prontos, 2 bots, 1 rodada');
+  ok(`personagens escolhidos, prontos, 2 bots, 1 rodada de ${MODE}`);
 
   alice.socket.emit('lobby:start');
   await waitFor(alice, 'countdown', 3000, () => phaseIs(alice, 'countdown'));
@@ -128,23 +151,48 @@ async function main(): Promise<void> {
   if (snapshots < 20) fail(`snapshots insuficientes em 2s: ${snapshots} (esperado ~30)`);
   ok(`snapshots fluindo (${snapshots} em 2s ≈ ${Math.round(snapshots / 2)}Hz)`);
 
-  // Alice drops a bomb and stays put — dies to her own blast.
-  alice.socket.emit('input', { up: false, down: false, left: false, right: false, action: true, ability: false });
-  await waitFor(alice, 'bomba plantada', 3000, () =>
-    alice.events.some((e) => e.type === 'bombPlaced' && e.owner === alice.ack.playerId),
-  );
-  ok('bomba plantada');
-  await waitFor(alice, 'explosão', 4000, () =>
-    alice.events.some((e) => e.type === 'explosion' && e.owner === alice.ack.playerId),
-  );
-  ok('explosão resolvida');
-  await waitFor(alice, 'morte da Alice', 2000, () =>
-    alice.events.some((e) => e.type === 'playerDied' && e.player === alice.ack.playerId),
-  );
-  ok('morte por explosão registrada');
+  if (MODE === 'batata') {
+    // Humans stand still; the bots hunt them down and pass by touch.
+    await waitFor(alice, 'batata acesa', 5000, () =>
+      alice.events.some((e) => e.type === 'potatoSpawned'),
+    );
+    ok('batata nasceu com um jogador');
+    await waitFor(alice, 'explosão da batata', 40_000, () =>
+      alice.events.some((e) => e.type === 'potatoExploded'),
+    );
+    ok('batata estourou (fuse oculto ≤ 25s)');
+    await waitFor(alice, 'eliminação', 2000, () =>
+      alice.events.some((e) => e.type === 'playerDied'),
+    );
+    ok('portador eliminado');
+    await waitFor(alice, 'arena encolheu', 2000, () =>
+      alice.events.some((e) => e.type === 'arenaShrunk'),
+    );
+    ok('arena encolheu um degrau');
+    // Worst case: the potato keeps landing on idle humans (25s each cycle).
+    await waitFor(alice, 'repasse por toque', 90_000, () =>
+      alice.events.some((e) => e.type === 'potatoPassed'),
+    );
+    ok('repasse por toque registrado');
+  } else {
+    // Alice drops a bomb and stays put — dies to her own blast.
+    alice.socket.emit('input', { up: false, down: false, left: false, right: false, action: true, ability: false });
+    await waitFor(alice, 'bomba plantada', 3000, () =>
+      alice.events.some((e) => e.type === 'bombPlaced' && e.owner === alice.playerId),
+    );
+    ok('bomba plantada');
+    await waitFor(alice, 'explosão', 4000, () =>
+      alice.events.some((e) => e.type === 'explosion' && e.owner === alice.playerId),
+    );
+    ok('explosão resolvida');
+    await waitFor(alice, 'morte da Alice', 2000, () =>
+      alice.events.some((e) => e.type === 'playerDied' && e.player === alice.playerId),
+    );
+    ok('morte por explosão registrada');
+  }
 
   if (FULL) {
-    console.log('… esperando a partida inteira terminar (morte súbita garante ≤ ~3min)');
+    console.log('… esperando a partida inteira terminar (pressão do modo garante o fim)');
     await waitFor(alice, 'pódio', 300_000, () => phaseIs(alice, 'podium'));
     const rows = alice.view.scoreboard;
     if (rows.length !== 4) fail(`placar deveria ter 4 linhas, tem ${rows.length}`);

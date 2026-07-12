@@ -674,6 +674,7 @@ export class BomberMode implements ServerMode, AbilityHost {
       abilityCooldownMs: Math.round(this.abilities.cooldownOf(p.id)),
     }));
     return {
+      modeId: 'bomber',
       grid: gridStr,
       players,
       bombs: [...this.bombs.values()].map((b) => ({

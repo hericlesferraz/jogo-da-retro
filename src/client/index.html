@@ -49,7 +49,11 @@
 
       /* ---------------------------------------------------------- intro */
       #screen-intro {
-        align-items: center; justify-content: center; text-align: center;
+        align-items: center; text-align: center;
+        /* "safe" keeps the top reachable when the content overflows a short
+           window — otherwise the "Criar sala" card gets clipped away. */
+        justify-content: center; justify-content: safe center;
+        overflow-y: auto;
         background:
           radial-gradient(ellipse at 50% 30%, rgba(255, 184, 48, 0.07), transparent 55%),
           var(--bg);
@@ -90,13 +94,40 @@
         0%, 100% { transform: translateY(0); }
         50% { transform: translateY(-7px); }
       }
-      #btn-enter { font-size: 1.25rem; padding: 0.8rem 3.2rem; border-radius: 14px; }
+      #intro-actions {
+        display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+        align-items: stretch; margin-top: 0.3rem;
+      }
+      .intro-card {
+        background: var(--panel); border: 2px solid #32324e; border-radius: 16px;
+        padding: 1rem 1.3rem 0.9rem; min-width: 280px;
+        display: flex; flex-direction: column; gap: 0.7rem; align-items: center;
+      }
+      .intro-card h3 {
+        font-size: 0.82rem; letter-spacing: 0.2em; text-transform: uppercase;
+        color: var(--muted); font-weight: 700;
+      }
+      .intro-create { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; }
+      .intro-join { display: flex; gap: 0.6rem; }
+      #inp-code {
+        font: inherit; color: inherit; background: var(--panel-2);
+        border: 2px solid #3a3a5c; border-radius: 10px;
+        width: 7.5ch; padding: 0.45rem 0.4rem; text-align: center;
+        font-size: 1.15rem; font-weight: 800; letter-spacing: 0.3em;
+        text-transform: uppercase;
+      }
+      #inp-code:focus { outline: none; border-color: var(--accent); }
       #intro-status { min-height: 1.1em; }
 
       /* ---------------------------------------------------------- lobby */
       #screen-lobby { align-items: center; overflow-y: auto; padding: 1.1rem; gap: 0.9rem; }
       #screen-lobby header { text-align: center; }
       #screen-lobby h1 { font-size: 1.45rem; letter-spacing: 0.02em; }
+      #lobby-room { margin-top: 0.2rem; font-size: 0.95rem; }
+      #lobby-room strong {
+        color: var(--accent); font-size: 1.15rem; letter-spacing: 0.25em;
+        margin-left: 0.15em;
+      }
       #lobby-status { color: var(--muted); margin-top: 0.15rem; font-size: 0.88rem; }
       #lobby-main {
         display: flex; gap: 1rem; width: min(980px, 100%);
@@ -266,16 +297,34 @@
     <div id="screen-intro" class="screen">
       <p class="intro-kicker">o ritual sagrado da retro</p>
       <h1 class="intro-title">Jogo da Retro</h1>
-      <div class="intro-sub">💣 Bomber Royale</div>
+      <div class="intro-sub">💣 Bomber Royale · 🥔 Batata-Quente</div>
       <div id="intro-roster"></div>
       <p class="intro-tagline">O último colocado organiza o jogo da próxima retro. 😈</p>
-      <button id="btn-enter" class="primary">▶ Entrar</button>
+      <div id="intro-actions">
+        <div class="intro-card">
+          <h3>Criar sala</h3>
+          <div class="intro-create">
+            <button id="btn-create-bomber" class="primary">💣 Bomber Royale</button>
+            <button id="btn-create-batata" class="primary">🥔 Batata-Quente</button>
+          </div>
+          <p class="hint">escolha o jogo — você vira o host e recebe um código</p>
+        </div>
+        <div class="intro-card">
+          <h3>Entrar em sala</h3>
+          <div class="intro-join">
+            <input id="inp-code" maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false" />
+            <button id="btn-join">▶ Entrar</button>
+          </div>
+          <p class="hint">pega o código com quem criou a sala</p>
+        </div>
+      </div>
       <p class="hint" id="intro-status">conectando…</p>
     </div>
 
     <div id="screen-lobby" class="screen" hidden>
       <header>
-        <h1>💣 Bomber Royale</h1>
+        <h1 id="lobby-title">💣 Bomber Royale</h1>
+        <p id="lobby-room"></p>
         <p id="lobby-status">conectando…</p>
       </header>
       <div id="lobby-main">
@@ -309,6 +358,7 @@
             <button id="btn-start" class="primary">▶ Iniciar partida</button>
           </div>
           <p class="hint" id="lobby-hint">Escolha seu personagem e marque pronto.<br />Mover: WASD/setas · Bomba: espaço · Habilidade: Shift ou E</p>
+          <button id="btn-leave" title="Voltar para a tela inicial">✕ Sair da sala</button>
         </div>
       </div>
     </div>

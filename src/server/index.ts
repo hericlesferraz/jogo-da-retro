@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
 import type { ClientToServer, ServerToClient } from '../shared/protocol';
 import { loadCharacters } from './core/characters';
-import { Room } from './core/room';
+import { RoomManager } from './core/rooms';
+import { BatataMode } from './modes/batata/mode';
 import { BomberMode } from './modes/bomber/mode';
 
 const app = express();
@@ -19,8 +20,10 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.resolve(here, '../../dist/client')));
 }
 
-const room = new Room(io, (deps) => new BomberMode(deps));
-io.on('connection', (socket) => room.handleConnection(socket));
+const rooms = new RoomManager(io, (modeId, deps) =>
+  modeId === 'batata' ? new BatataMode(deps) : new BomberMode(deps),
+);
+io.on('connection', (socket) => rooms.handleConnection(socket));
 
 const port = Number(process.env.PORT ?? 3000);
 httpServer.listen(port, () => {

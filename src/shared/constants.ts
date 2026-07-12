@@ -77,3 +77,48 @@ export const BOMBER = {
 
   KILL_BONUS_POINTS: 3,
 } as const;
+
+// ---------------------------------------------------------------------------
+// Batata-Quente
+// ---------------------------------------------------------------------------
+
+export const BATATA = {
+  /** Arena in cell units — free movement; cells only set the render scale. */
+  ARENA_W: 20,
+  ARENA_H: 13,
+  PLAYER_RADIUS: 0.35,
+  /** Base move speed, cells/second. */
+  BASE_SPEED: 4.4,
+  /** Carrier moves faster, or they would never catch anyone (doc: +15%). */
+  CARRIER_SPEED_BONUS: 0.15,
+  /** Immunity after passing (or shield-blocking) — kills the instant pass-back. */
+  PASS_IMMUNITY_MS: 1_500,
+  /** Center-to-center pass distance — generous on purpose ("eu não encostei!"). */
+  TOUCH_RADIUS: 0.85,
+  /** Hidden semi-random fuse. */
+  FUSE_MIN_MS: 15_000,
+  FUSE_MAX_MS: 25_000,
+  /** The potato reappears with a random survivor after an explosion. */
+  RESPAWN_MS: 2_000,
+  /** A grounded potato (decoy trick) sticks to the nearest player after this. */
+  GROUND_PICKUP_TIMEOUT_MS: 4_000,
+  /** Dodge (espaço): timed escape that compensates the carrier's edge —
+   * brief pass-immunity + a small burst away. Mistimed = wasted cooldown. */
+  DODGE_IMMUNITY_MS: 500,
+  DODGE_BURST_MS: 250,
+  DODGE_SPEED_CELLS_PER_S: 8,
+  DODGE_COOLDOWN_MS: 4_000,
+  /** Anti-camping: no pass for this long → carrier speed ramps up. */
+  ANTICAMP_AFTER_MS: 10_000,
+  ANTICAMP_RAMP_PER_S: 0.05,
+  ANTICAMP_MAX_BONUS: 1.0,
+  /** Walls close one step per elimination (units per side, per axis). */
+  SHRINK_STEP_X: 1.15,
+  SHRINK_STEP_Y: 0.7,
+  /** How fast the walls slide to their new position, units/second. */
+  SHRINK_SPEED: 2.0,
+  MIN_ARENA_W: 4.5,
+  MIN_ARENA_H: 3.5,
+  OBSTACLE_COUNT: 9,
+  KILL_BONUS_POINTS: 2,
+} as const;

@@ -29,16 +29,20 @@ export function setupInput(socket: GameSocket): { current: () => PlayerInput } {
     send();
   };
 
+  // Typing in a form field (room code) must not steer the character.
+  const inField = (e: KeyboardEvent): boolean =>
+    (e.target as HTMLElement | null)?.tagName === 'INPUT';
+
   window.addEventListener('keydown', (e) => {
     const key = KEY_MAP[e.code];
-    if (!key) return;
+    if (!key || inField(e)) return;
     if (e.repeat) return e.preventDefault();
     e.preventDefault();
     set(key, true);
   });
   window.addEventListener('keyup', (e) => {
     const key = KEY_MAP[e.code];
-    if (!key) return;
+    if (!key || inField(e)) return;
     e.preventDefault();
     set(key, false);
   });

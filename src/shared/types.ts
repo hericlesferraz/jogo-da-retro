@@ -3,6 +3,9 @@
 
 export type PlayerId = string;
 
+/** Registered game modes — the host picks one in the lobby. */
+export type GameModeId = 'bomber' | 'batata';
+
 export type AbilityId =
   | 'dash'
   | 'shield'
@@ -42,9 +45,9 @@ export interface PlayerInput {
   down: boolean;
   left: boolean;
   right: boolean;
-  /** Space — mode primary action (bomb in Bomber; ability in Batata). */
+  /** Space — mode primary action (bomb in Bomber; dodge in Batata). */
   action: boolean;
-  /** Shift/E — character ability (Bomber only; Batata maps ability to `action`). */
+  /** Shift/E — character ability (both modes). */
   ability: boolean;
 }
 
@@ -106,7 +109,11 @@ export interface ScoreRow {
  * Sent on join and whenever it changes — not part of the 15Hz snapshot.
  */
 export interface RoomView {
+  /** Room code the team types on the title screen to join. */
+  code: string;
   phase: MatchPhase;
+  /** The game this room plays — chosen at creation, fixed for the room. */
+  modeId: GameModeId;
   players: LobbyPlayer[];
   hostId: PlayerId | null;
   roundsPerMatch: number;
@@ -127,7 +134,7 @@ export interface GameSnapshot {
   phase: MatchPhase;
   /** ms until the round starts; present during countdown. */
   countdownMsLeft?: number;
-  mode: BomberSnapshot; // union with BatataSnapshot in session 3
+  mode: ModeSnapshot;
 }
 
 /**
@@ -145,7 +152,17 @@ export type GameEvent =
   | { type: 'shieldBlocked'; player: PlayerId }
   | { type: 'suddenDeathStarted' }
   | { type: 'wallFell'; x: number; y: number }
-  | { type: 'roundEnded'; winner: PlayerId | null };
+  | { type: 'roundEnded'; winner: PlayerId | null }
+  // Batata-Quente
+  | { type: 'potatoSpawned'; holder: PlayerId }
+  | { type: 'potatoPassed'; from: PlayerId; to: PlayerId; x: number; y: number }
+  /** Decoy trick: the potato fell to the ground — first to touch it takes it. */
+  | { type: 'potatoDropped'; x: number; y: number }
+  | { type: 'potatoPicked'; player: PlayerId; x: number; y: number }
+  /** victim is null when it blew up on the ground (nobody eliminated). */
+  | { type: 'potatoExploded'; x: number; y: number; victim: PlayerId | null }
+  | { type: 'dodged'; player: PlayerId; x: number; y: number }
+  | { type: 'arenaShrunk'; stage: number };
 
 // ---------------------------------------------------------------------------
 // Bomber Royale snapshot
@@ -178,6 +195,7 @@ export interface BomberPlayerSnap {
 }
 
 export interface BomberSnapshot {
+  modeId: 'bomber';
   grid: string;
   players: BomberPlayerSnap[];
   bombs: { id: number; x: number; y: number; fuse: number }[]; // fuse: 0..1 left
@@ -192,6 +210,52 @@ export interface BomberSnapshot {
     nextCell: { x: number; y: number } | null;
   };
 }
+
+// ---------------------------------------------------------------------------
+// Batata-Quente snapshot
+// ---------------------------------------------------------------------------
+
+export interface BatataPlayerSnap {
+  id: PlayerId;
+  x: number; // arena units, center of the player (free movement, not a grid)
+  y: number;
+  dir: Dir;
+  alive: boolean;
+  frozenMs: number;
+  ghostMs: number;
+  shieldMs: number;
+  /** Can't receive the potato while > 0 (just passed it / shield block / dodge). */
+  immuneMs: number;
+  kills: number;
+  abilityCooldownMs: number;
+  dodgeCooldownMs: number;
+}
+
+export interface BatataSnapshot {
+  modeId: 'batata';
+  players: BatataPlayerSnap[];
+  potato: {
+    /** null while on the ground or respawning. */
+    holder: PlayerId | null;
+    /** Where to draw it: the holder's center, or its spot on the ground. */
+    x: number;
+    y: number;
+    onGround: boolean;
+    /** Fraction of the fuse burnt (0..1) — drives the blink rate. The total
+     * fuse is hidden by design; heat only reveals "getting close". */
+    heat: number;
+    /** ms until it reappears after an explosion; 0 while active. */
+    respawnInMs: number;
+  };
+  decoys: { id: number; characterId: string; x: number; y: number }[];
+  /** Static for the round. */
+  obstacles: { x: number; y: number; w: number; h: number }[];
+  /** Current playable area — walls close in one step per elimination. */
+  bounds: { minX: number; minY: number; maxX: number; maxY: number };
+  shrinkStage: number;
+}
+
+export type ModeSnapshot = BomberSnapshot | BatataSnapshot;
 
 // ---------------------------------------------------------------------------
 // GameMode plugin contract

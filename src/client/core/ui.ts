@@ -8,14 +8,13 @@ import {
   MIN_ROUNDS_PER_MATCH,
 } from '../../shared/constants';
 import type {
-  BomberPlayerSnap,
   CharacterDef,
   GameSnapshot,
   PlayerId,
   RoomView,
   ScoreRow,
 } from '../../shared/types';
-import { ABILITY_META, CHARACTERS, characterOf } from './characters';
+import { ABILITY_META, CHARACTERS, characterOf, MODE_META } from './characters';
 import { artFor } from './sprites';
 import type { GameSocket } from './socket';
 
@@ -59,8 +58,13 @@ export function showScreen(which: 'intro' | 'lobby' | 'game'): void {
 
 // ------------------------------------------------------------------ intro
 
-/** Fills the bobbing roster strip on the title screen (once). */
-export function renderIntro(onEnter: () => void): void {
+/** Title screen: roster strip + create-room (per game) / join-by-code. */
+export function renderIntro(handlers: {
+  onCreate: (mode: 'bomber' | 'batata') => void;
+  onJoin: (code: string) => void;
+  /** Pre-fills the join field (last room visited / shared link). */
+  initialCode?: string;
+}): void {
   const roster = $('intro-roster');
   roster.replaceChildren();
   CHARACTERS.forEach((char, i) => {
@@ -72,7 +76,22 @@ export function renderIntro(onEnter: () => void): void {
     img.style.animationDelay = `${(i % 8) * 0.12}s`;
     roster.appendChild(img);
   });
-  $('btn-enter').onclick = onEnter;
+
+  $('btn-create-bomber').onclick = () => handlers.onCreate('bomber');
+  $('btn-create-batata').onclick = () => handlers.onCreate('batata');
+
+  const input = $<HTMLInputElement>('inp-code');
+  if (handlers.initialCode) input.value = handlers.initialCode;
+  const join = () => {
+    const code = input.value.trim().toUpperCase();
+    if (code.length < 4) return toast('Código tem 4 letras.');
+    handlers.onJoin(code);
+  };
+  $('btn-join').onclick = join;
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') join();
+    e.stopPropagation(); // typing a code must not move a game character
+  };
 }
 
 // ------------------------------------------------------------------ lobby
@@ -85,6 +104,11 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
   current = { view, myId, socket };
   const me = view.players.find((p) => p.id === myId) ?? null;
   const isHost = myId !== null && view.hostId === myId;
+
+  const modeMeta = MODE_META[view.modeId];
+  $('lobby-title').textContent = `${modeMeta.icon} ${modeMeta.nome}`;
+  $('lobby-room').innerHTML =
+    `sala <strong>${view.code}</strong> — fala o código pro time entrar!`;
 
   // default preview: what I browsed > my character > first free > first
   if (!previewCharId) {
@@ -202,6 +226,9 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
         : humansPending.length > 0
           ? `Esperando ficar pronto: ${humansPending.map((p) => nameOf(view, p.id)).join(', ')}`
           : 'Tudo pronto — bora! 🚀';
+  } else {
+    $('lobby-hint').innerHTML =
+      `Escolha seu personagem e marque pronto.<br />${modeMeta.controles}`;
   }
 }
 
@@ -269,7 +296,7 @@ export function updateHud(
 
   const mode = snap?.mode;
   const sudden = $('hud-sudden');
-  if (mode) {
+  if (mode?.modeId === 'bomber') {
     if (mode.suddenDeath.active) {
       sudden.textContent = '☠️ MORTE SÚBITA!';
       sudden.classList.add('warn');
@@ -277,6 +304,23 @@ export function updateHud(
       const s = Math.ceil(mode.suddenDeath.startsInMs / 1000);
       sudden.textContent = `⏳ morte súbita em ${s}s`;
       sudden.classList.toggle('warn', s <= 10);
+    }
+  } else if (mode?.modeId === 'batata') {
+    const pot = mode.potato;
+    if (pot.respawnInMs > 0) {
+      sudden.textContent = '🥔 a batata volta já…';
+      sudden.classList.remove('warn');
+    } else if (pot.onGround) {
+      sudden.textContent = '🥔 batata no chão — ninguém quer!';
+      sudden.classList.add('warn');
+    } else if (pot.holder) {
+      const holderChar = characterOf(
+        view.players.find((v) => v.id === pot.holder)?.characterId,
+      );
+      sudden.textContent = `🥔 com ${holderChar?.nome ?? '?'}`;
+      sudden.classList.toggle('warn', pot.holder === myId);
+    } else {
+      sudden.textContent = '';
     }
   }
 
@@ -301,14 +345,26 @@ export function updateHud(
     }
   }
 
-  const meSnap: BomberPlayerSnap | null =
-    mode?.players.find((p) => p.id === myId) ?? null;
+  const meSnap = mode?.players.find((p) => p.id === myId) ?? null;
   const stats = $('hud-stats');
-  if (meSnap) {
+  if (meSnap && mode?.modeId === 'bomber' && 'maxBombs' in meSnap) {
     stats.textContent = `💣 ${meSnap.maxBombs}  ·  🔥 ${meSnap.range}  ·  👟 ${meSnap.speedStacks > 0 ? `+${meSnap.speedStacks * 15}%` : 'base'}`;
+  } else if (meSnap && mode?.modeId === 'batata' && meSnap.alive && 'dodgeCooldownMs' in meSnap) {
+    const dodge =
+      meSnap.dodgeCooldownMs > 0
+        ? `🌀 esquiva em ${Math.ceil(meSnap.dodgeCooldownMs / 1000)}s`
+        : '🌀 esquiva pronta';
+    stats.textContent =
+      mode.potato.holder === myId
+        ? '🥔🔥 VOCÊ está com a batata — PASSA!'
+        : `🏃 fuja da batata!  ·  ${dodge}`;
   } else {
     stats.textContent = '👀 assistindo';
   }
+  $('hud-keys').textContent =
+    mode?.modeId === 'batata'
+      ? 'espaço: esquiva · shift/E: habilidade'
+      : 'espaço: bomba · shift/E: habilidade';
 
   const myChar = characterOf(view.players.find((p) => p.id === myId)?.characterId);
   const abilityBox = $('hud-ability');
@@ -399,7 +455,12 @@ export function setIntermissionCountdown(seconds: number): void {
   if (el) el.textContent = `${seconds}s`;
 }
 
-export function showPodium(view: RoomView, myId: PlayerId | null, socket: GameSocket): void {
+export function showPodium(
+  view: RoomView,
+  myId: PlayerId | null,
+  socket: GameSocket,
+  onLeave: () => void,
+): void {
   const overlay = $('overlay');
   overlay.hidden = false;
   overlay.classList.remove('countdown');
@@ -427,16 +488,23 @@ export function showPodium(view: RoomView, myId: PlayerId | null, socket: GameSo
     ${loserLine}
     <div class="actions" id="podium-actions"></div>
   `;
+  const actions = document.getElementById('podium-actions');
   if (view.hostId === myId) {
     const btn = document.createElement('button');
     btn.className = 'primary';
     btn.textContent = '🔁 Jogar de novo';
     btn.onclick = () => socket.emit('podium:playAgain');
-    document.getElementById('podium-actions')?.appendChild(btn);
+    actions?.appendChild(btn);
   } else {
     const p = document.createElement('p');
     p.className = 'overlay-sub';
-    p.textContent = 'esperando o host reiniciar…';
-    document.getElementById('podium-actions')?.appendChild(p);
+    p.textContent = view.hostId
+      ? `esperando ${nameOf(view, view.hostId)} (host) reiniciar…`
+      : 'esperando o host reiniciar…';
+    actions?.appendChild(p);
   }
+  const leave = document.createElement('button');
+  leave.textContent = '✕ Sair da sala';
+  leave.onclick = onLeave;
+  actions?.appendChild(leave);
 }

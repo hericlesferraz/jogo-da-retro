@@ -1,6 +1,6 @@
 // Client-side roster: bundled straight from config/personagens.json.
 import rawConfig from '../../../config/personagens.json';
-import type { AbilityId, CharacterDef } from '../../shared/types';
+import type { AbilityId, CharacterDef, GameModeId } from '../../shared/types';
 
 export const CHARACTERS: CharacterDef[] = rawConfig.personagens.map((c) => ({
   ...c,
@@ -24,6 +24,25 @@ export const ABILITY_META: Record<AbilityId, { icon: string; nome: string; desc:
   ghost: { icon: '👻', nome: 'Fantasma', desc: 'Atravessa blocos por 2s' },
   decoy: { icon: '🎭', nome: 'Isca', desc: 'Cria um clone-isca parado por 4s' },
   'bomb-kick': { icon: '🦵', nome: 'Chute', desc: 'Chuta uma bomba na direção olhada' },
+};
+
+/** Display bits per game mode (pt-BR). */
+export const MODE_META: Record<
+  GameModeId,
+  { icon: string; nome: string; desc: string; controles: string }
+> = {
+  bomber: {
+    icon: '💣',
+    nome: 'Bomber Royale',
+    desc: 'Exploda blocos, colete power-ups e sobreviva à morte súbita.',
+    controles: 'Mover: WASD/setas · Bomba: espaço · Habilidade: Shift ou E',
+  },
+  batata: {
+    icon: '🥔',
+    nome: 'Batata-Quente',
+    desc: 'Quem estiver com a batata quando estourar, sai. Encoste para passar!',
+    controles: 'Mover: WASD/setas · Esquiva: espaço · Habilidade: Shift ou E',
+  },
 };
 
 export const POWERUP_META = {

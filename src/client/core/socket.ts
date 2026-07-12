@@ -1,11 +1,12 @@
 import { io, type Socket } from 'socket.io-client';
-import type { ClientToServer, JoinAck, ServerToClient } from '../../shared/protocol';
+import type { ClientToServer, ServerToClient } from '../../shared/protocol';
 
 export type GameSocket = Socket<ServerToClient, ClientToServer>;
 
 const TOKEN_KEY = 'retro-token';
 
-function token(): string {
+/** Reconnection identity — the same token lands back in the same seat. */
+export function playerToken(): string {
   let t = localStorage.getItem(TOKEN_KEY);
   if (!t) {
     t = crypto.randomUUID();
@@ -14,14 +15,7 @@ function token(): string {
   return t;
 }
 
-/**
- * Connects and (re)joins on every connect — reconnection lands the player
- * back in the same seat thanks to the localStorage token.
- */
-export function connect(onJoin: (ack: JoinAck) => void): GameSocket {
-  const socket: GameSocket = io();
-  socket.on('connect', () => {
-    socket.emit('join', { token: token() }, onJoin);
-  });
-  return socket;
+/** Plain connection; entering a room is driven by main.ts (create/join). */
+export function connect(): GameSocket {
+  return io();
 }
