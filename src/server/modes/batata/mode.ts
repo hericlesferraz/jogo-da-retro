@@ -14,15 +14,17 @@ import {
   ROUND_END_GRACE_MS,
   TELEPORT_RANGE_CELLS,
 } from '../../../shared/constants';
-import type {
-  AbilityId,
-  BatataPlayerSnap,
-  BatataSnapshot,
-  Dir,
-  GameEvent,
-  PlayerId,
-  PlayerInput,
-  RoundResult,
+import {
+  BATATA_THEMES,
+  type AbilityId,
+  type BatataPlayerSnap,
+  type BatataSnapshot,
+  type BatataTheme,
+  type Dir,
+  type GameEvent,
+  type PlayerId,
+  type PlayerInput,
+  type RoundResult,
 } from '../../../shared/types';
 import { circleHitsRect, generateObstacles, pointRectDistance, spawnPoints, type Rect } from './arena';
 import { computeBotInput, type BotMemory } from './bot';
@@ -102,6 +104,8 @@ export class BatataMode implements ServerMode, AbilityHost {
   private decidedAtMs: number | null = null;
   private potatoLit = false;
   private nextDecoyId = 1;
+  private theme: BatataTheme = 'noite';
+  private roundsStarted = 0;
 
   private abilities: AbilitySystem;
   private botMemory = new Map<PlayerId, BotMemory>();
@@ -121,6 +125,13 @@ export class BatataMode implements ServerMode, AbilityHost {
   // ------------------------------------------------------------ round setup
 
   startRound(playerIds: PlayerId[]): void {
+    // Fresh look every round: any theme on round 1, never the same twice.
+    const pool =
+      this.roundsStarted === 0
+        ? BATATA_THEMES
+        : BATATA_THEMES.filter((t) => t !== this.theme);
+    this.theme = pool[Math.floor(this.rng() * pool.length)]!;
+    this.roundsStarted += 1;
     this.obstacles = generateObstacles(this.rng);
     this.players.clear();
     this.decoys = [];
@@ -587,6 +598,7 @@ export class BatataMode implements ServerMode, AbilityHost {
     const pot = this.potato;
     return {
       modeId: 'batata',
+      theme: this.theme,
       players,
       potato: {
         holder: pot.respawnInMs > 0 ? null : pot.holder,

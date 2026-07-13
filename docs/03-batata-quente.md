@@ -63,3 +63,5 @@ Decisões tomadas ao implementar (valores em `src/shared/constants.ts`, bloco `B
 - **Swap**: a batata vai junto com o portador (troca só as posições) — teleportar o perigo para longe/perto é parte da graça.
 - **Kill da batata**: quem fez o último repasse leva o crédito mesmo se a batata caiu no chão no meio (decoy) — quem derrubou segue "dono" dela.
 - **Timer oculto no cliente**: o snapshot só expõe `heat` (fração 0..1 do fuse queimado) para acelerar o pisca-pisca — o total sorteado nunca sai do servidor.
+- **Temas visuais por rodada**: cada rodada sorteia um tema (🌙 noite, 🍳 cozinha, 🌻 quintal, ❄️ gelo — nunca o mesmo duas vezes seguidas). Só visual: o servidor escolhe e envia o id no snapshot; a paleta vive no renderizador.
+- **Som**: bipe sincronizado com a piscada da batata (mesma fase do brilho — acelera e sobe de tom com o `heat`), blip duplo no repasse (mitigação sonora do risco "eu não encostei!") e boom na explosão. Tudo procedural via WebAudio (`client/core/audio.ts`), sem arquivos; música e mute ficam para o passe de polimento.

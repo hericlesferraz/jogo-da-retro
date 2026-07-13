@@ -28,8 +28,9 @@ O projeto é construído em sessões de trabalho. Cada jogo fica pronto (jogáve
 3. ✅ **Esquiva** (feedback de playtest): espaço = imunidade breve + impulso com cooldown 4s — contrajogada à vantagem do portador.
 4. ✅ Correções de playtest: proporção dos sprites na arena (desenho respeita o aspect da arte), portador não se engana com o próprio decoy, jogador não fica preso em obstáculo quando a parede encolhe.
 5. ✅ Skins por modo: arte opcional em `personagens/batata/` com fallback automático para a arte padrão.
-6. ✅ Smoke tests: `npm run smoke[:full]` e `smoke:batata[:full]` — cobrindo criação/entrada de sala, código inválido e o ciclo de cada modo.
-7. 🔜 Playtest em grupo, tuning dos valores jogando (esquiva, fuse, encolhimento) e deploy (roteiro em `docs/04-deploy.md`).
+6. ✅ Temas visuais por rodada na batata (noite/cozinha/quintal/gelo, sorteados sem repetir) e som procedural via WebAudio (bipe na piscada da batata, blip no repasse, boom na explosão).
+7. ✅ Smoke tests: `npm run smoke[:full]` e `smoke:batata[:full]` — cobrindo criação/entrada de sala, código inválido e o ciclo de cada modo.
+8. 🔜 Playtest em grupo, tuning dos valores jogando (esquiva, fuse, encolhimento) e deploy (roteiro em `docs/04-deploy.md`).
 
 **Decisões da sessão** em `docs/03-batata-quente.md` → "Notas de implementação".
 

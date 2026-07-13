@@ -7,14 +7,52 @@ import { BATATA } from '../../../shared/constants';
 import type {
   BatataPlayerSnap,
   BatataSnapshot,
+  BatataTheme,
   CharacterDef,
   GameEvent,
   PlayerId,
 } from '../../../shared/types';
+import { beep, boom } from '../../core/audio';
 import { ABILITY_META, characterOf } from '../../core/characters';
 import { artFor, spriteBox } from '../../core/sprites';
 
 const { ARENA_W: W, ARENA_H: H } = BATATA;
+
+/** Visual round themes — same gameplay, fresh look (server picks per round). */
+const THEMES: Record<
+  BatataTheme,
+  {
+    icon: string;
+    nome: string;
+    floorA: string;
+    floorB: string;
+    wall: string;
+    obstacle: string;
+    obstacleTop: string;
+    obstacleStroke: string;
+  }
+> = {
+  noite: {
+    icon: '🌙', nome: 'Noite',
+    floorA: '#20203a', floorB: '#242440', wall: '#464673',
+    obstacle: '#7a5a40', obstacleTop: '#8d6a4c', obstacleStroke: '#5f4630',
+  },
+  cozinha: {
+    icon: '🍳', nome: 'Cozinha',
+    floorA: '#2f2a25', floorB: '#363029', wall: '#6b4a32',
+    obstacle: '#6f7680', obstacleTop: '#8b939f', obstacleStroke: '#4a4f58',
+  },
+  quintal: {
+    icon: '🌻', nome: 'Quintal',
+    floorA: '#22331f', floorB: '#273a23', wall: '#3e5d3a',
+    obstacle: '#7a5a40', obstacleTop: '#8d6a4c', obstacleStroke: '#5f4630',
+  },
+  gelo: {
+    icon: '❄️', nome: 'Gelo',
+    floorA: '#243040', floorB: '#293748', wall: '#4a6a8a',
+    obstacle: '#5a89ac', obstacleTop: '#7fb3d6', obstacleStroke: '#3d5f7a',
+  },
+};
 
 interface Fx {
   type: 'ring' | 'particles' | 'label' | 'flash';
@@ -33,6 +71,11 @@ export class BatataRenderer {
   private fx: Fx[] = [];
   private lastPos = new Map<PlayerId, { x: number; y: number; movingUntil: number }>();
   private shakeUntil = 0;
+  private lastTheme: BatataTheme | null = null;
+  /** Blink phase (cycles) — visual pulse and beep share the same clock. */
+  private potatoPhase = 0;
+  private phaseClockAt = 0;
+  private beepedCycle = -1;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -71,6 +114,10 @@ export class BatataRenderer {
           break;
         }
         case 'potatoPassed': {
+          // The doc flags pass disputes as the top lag risk — strong audio
+          // feedback ("eu ouvi o repasse") is part of the mitigation.
+          beep(700, 60, 0.1, 'square');
+          beep(1050, 80, 0.1, 'square', 70);
           this.fx.push({
             type: 'ring',
             x: ev.x,
@@ -116,6 +163,7 @@ export class BatataRenderer {
           break;
         }
         case 'potatoExploded': {
+          boom();
           this.shakeUntil = Math.max(this.shakeUntil, now + 260);
           this.fx.push({
             type: 'ring',
@@ -188,6 +236,7 @@ export class BatataRenderer {
           break;
         }
         case 'dodged':
+          beep(300, 90, 0.06, 'sine');
           this.fx.push({
             type: 'ring',
             x: ev.x,
@@ -215,6 +264,22 @@ export class BatataRenderer {
   render(snap: BatataSnapshot, myId: PlayerId | null): void {
     const { ctx, cell } = this;
     const now = performance.now();
+
+    if (snap.theme !== this.lastTheme) {
+      this.lastTheme = snap.theme;
+      const t = THEMES[snap.theme];
+      this.fx.push({
+        type: 'label',
+        x: W / 2,
+        y: 2.2,
+        t0: now,
+        duration: 1800,
+        text: `${t.icon} ${t.nome}`,
+        color: '#ffe08a',
+      });
+    }
+    this.tickPotatoBlink(snap, now);
+
     ctx.save();
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -238,16 +303,17 @@ export class BatataRenderer {
 
   private drawFloorAndWalls(snap: BatataSnapshot, now: number): void {
     const { ctx, cell } = this;
+    const theme = THEMES[snap.theme];
     // checkered open floor
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
-        ctx.fillStyle = (x + y) % 2 === 0 ? '#20203a' : '#242440';
+        ctx.fillStyle = (x + y) % 2 === 0 ? theme.floorA : theme.floorB;
         ctx.fillRect(x * cell, y * cell, cell, cell);
       }
     }
     // closed-in walls (everything outside the current bounds)
     const b = snap.bounds;
-    ctx.fillStyle = '#464673';
+    ctx.fillStyle = theme.wall;
     ctx.fillRect(0, 0, b.minX * cell, H * cell);
     ctx.fillRect(b.maxX * cell, 0, (W - b.maxX) * cell, H * cell);
     ctx.fillRect(b.minX * cell, 0, (b.maxX - b.minX) * cell, b.minY * cell);
@@ -266,16 +332,17 @@ export class BatataRenderer {
 
   private drawObstacles(snap: BatataSnapshot): void {
     const { ctx, cell } = this;
+    const theme = THEMES[snap.theme];
     for (const o of snap.obstacles) {
       const px = o.x * cell;
       const py = o.y * cell;
       const pw = o.w * cell;
       const ph = o.h * cell;
-      ctx.fillStyle = '#7a5a40';
+      ctx.fillStyle = theme.obstacle;
       ctx.fillRect(px + 1, py + 1, pw - 2, ph - 2);
-      ctx.fillStyle = '#8d6a4c';
+      ctx.fillStyle = theme.obstacleTop;
       ctx.fillRect(px + 1, py + 1, pw - 2, ph * 0.14);
-      ctx.strokeStyle = '#5f4630';
+      ctx.strokeStyle = theme.obstacleStroke;
       ctx.lineWidth = Math.max(1, cell * 0.04);
       ctx.strokeRect(px + pw * 0.08, py + ph * 0.08, pw * 0.84, ph * 0.84);
     }
@@ -283,10 +350,33 @@ export class BatataRenderer {
 
   // ----------------------------------------------------------------- potato
 
-  /** Blink rate ramps with heat — the "hidden timer" tell from the doc. */
-  private potatoPulse(heat: number, now: number): number {
-    const rate = 0.9 + heat * 6; // Hz
-    return Math.max(0, Math.sin((now / 1000) * rate * Math.PI * 2));
+  /**
+   * Advance the blink phase (rate ramps with heat — the "hidden timer" tell
+   * from the doc) and tick the accompanying beep once per blink: same clock,
+   * so what you hear is exactly what you see. Pitch rises with the heat.
+   */
+  private tickPotatoBlink(snap: BatataSnapshot, now: number): void {
+    const dt = this.phaseClockAt ? Math.min(100, now - this.phaseClockAt) : 0;
+    this.phaseClockAt = now;
+    const active = snap.potato.holder !== null || snap.potato.onGround;
+    if (!active) {
+      this.potatoPhase = 0;
+      this.beepedCycle = -1;
+      return;
+    }
+    const heat = snap.potato.heat;
+    const rate = 0.9 + heat * 6; // blinks per second
+    this.potatoPhase += (rate * dt) / 1000;
+    const cycle = Math.floor(this.potatoPhase);
+    if (cycle !== this.beepedCycle) {
+      const first = this.beepedCycle === -1;
+      this.beepedCycle = cycle;
+      if (!first) beep(480 + heat * 640, 70, 0.045 + heat * 0.055);
+    }
+  }
+
+  private potatoPulse(): number {
+    return Math.max(0, Math.sin(this.potatoPhase * Math.PI * 2));
   }
 
   private drawGroundPotato(snap: BatataSnapshot, now: number): void {
@@ -294,7 +384,7 @@ export class BatataRenderer {
     const pot = snap.potato;
     const px = pot.x * cell;
     const py = pot.y * cell;
-    const pulse = this.potatoPulse(pot.heat, now);
+    const pulse = this.potatoPulse();
     const glow = ctx.createRadialGradient(px, py, cell * 0.1, px, py, cell * (0.9 + pulse * 0.3));
     glow.addColorStop(0, `rgba(255, 82, 82, ${0.35 + pulse * 0.3})`);
     glow.addColorStop(1, 'rgba(255, 82, 82, 0)');
@@ -357,7 +447,7 @@ export class BatataRenderer {
 
     // carrier: big red pulsing glow, visible from across the arena
     if (isCarrier) {
-      const pulse = this.potatoPulse(snap.potato.heat, now);
+      const pulse = this.potatoPulse();
       const radius = cell * (1.1 + pulse * 0.35);
       const glow = ctx.createRadialGradient(px, py, cell * 0.15, px, py, radius);
       glow.addColorStop(0, `rgba(255, 60, 40, ${0.4 + pulse * 0.35})`);

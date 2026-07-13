@@ -64,7 +64,7 @@ O sistema de habilidades vive na fundação (`server/core/abilities.ts`); efeito
 ## Áudio
 
 - Música de fundo em loop (uma faixa por modo) + efeitos sonoros disparados pelos **eventos do servidor** (explosão, repasse, eliminação, power-up, contagem regressiva) — mesma fonte que alimenta as animações.
-- `client/core/audio.ts`: manifest de arquivos em `src/client/public/audio/`, com volumes separados para música e efeitos e botão de mute no lobby/HUD.
+- `client/core/audio.ts`: hoje gera efeitos **procedurais via WebAudio** (bipe da batata, repasse, explosão — sem arquivos). O plano completo segue: manifest de arquivos em `src/client/public/audio/`, com volumes separados para música e efeitos e botão de mute no lobby/HUD.
 - O time joga **em call** durante a retro: música começa em volume baixo por padrão, cada um ajusta o seu.
 - Navegadores só liberam áudio após um gesto do usuário — o clique de "pronto" no lobby satisfaz isso naturalmente.
 - Fontes de áudio: faixas chiptune royalty-free (OpenGameArt, itch.io, Pixabay) ou geradas por IA.

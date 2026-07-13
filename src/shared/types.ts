@@ -215,6 +215,12 @@ export interface BomberSnapshot {
 // Batata-Quente snapshot
 // ---------------------------------------------------------------------------
 
+/** Visual arena themes — one is drawn per round (gameplay is identical).
+ * The server picks (all clients must agree); the palette lives in the
+ * client renderer. */
+export const BATATA_THEMES = ['noite', 'cozinha', 'quintal', 'gelo'] as const;
+export type BatataTheme = (typeof BATATA_THEMES)[number];
+
 export interface BatataPlayerSnap {
   id: PlayerId;
   x: number; // arena units, center of the player (free movement, not a grid)
@@ -233,6 +239,8 @@ export interface BatataPlayerSnap {
 
 export interface BatataSnapshot {
   modeId: 'batata';
+  /** Visual theme of the current round. */
+  theme: BatataTheme;
   players: BatataPlayerSnap[];
   potato: {
     /** null while on the ground or respawning. */

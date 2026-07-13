@@ -169,8 +169,9 @@ async function main(): Promise<void> {
       alice.events.some((e) => e.type === 'arenaShrunk'),
     );
     ok('arena encolheu um degrau');
-    // Worst case: the potato keeps landing on idle humans (25s each cycle).
-    await waitFor(alice, 'repasse por toque', 90_000, () =>
+    // Worst case: the potato keeps landing on idle humans (25s each cycle)
+    // and the final bot-vs-bot duel drags (bots dodge each other now).
+    await waitFor(alice, 'repasse por toque', 150_000, () =>
       alice.events.some((e) => e.type === 'potatoPassed'),
     );
     ok('repasse por toque registrado');
