@@ -33,6 +33,11 @@ O projeto é construído em sessões de trabalho. Cada jogo fica pronto (jogáve
 
 **Decisões da sessão** em `docs/03-batata-quente.md` → "Notas de implementação".
 
-## Sessão 4+ — Polimento (opcional, quando for a vez dele de novo)
+## Sessão 4 — Time real e tela de seleção (16/jul/2026)
+
+1. ✅ 9 personagens do time (arte do usuário) fatiados e configurados; fatiador com defringe e remoção opcional de bolsões (`--pockets`).
+2. ✅ Tela inicial virou "Escolha o jogo": capas clicáveis por jogo (criar sala) + entrada por código; capas geradas via `docs/prompt-capas.md`, com fallback de emoji quando ausentes.
+
+## Sessão 5+ — Polimento (opcional, quando for a vez dele de novo)
 
 - Emojis de torcida para espectadores mortos, efeitos visuais/sonoros, novos mapas, novas habilidades, histórico de temporada entre retros.

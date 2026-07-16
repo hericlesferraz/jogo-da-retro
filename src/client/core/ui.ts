@@ -58,27 +58,24 @@ export function showScreen(which: 'intro' | 'lobby' | 'game'): void {
 
 // ------------------------------------------------------------------ intro
 
-/** Title screen: roster strip + create-room (per game) / join-by-code. */
+/** Title screen: pick a game (creates the room) or join by code. */
 export function renderIntro(handlers: {
   onCreate: (mode: 'bomber' | 'batata') => void;
   onJoin: (code: string) => void;
   /** Pre-fills the join field (last room visited / shared link). */
   initialCode?: string;
 }): void {
-  const roster = $('intro-roster');
-  roster.replaceChildren();
-  CHARACTERS.forEach((char, i) => {
-    const img = document.createElement('img');
-    img.className = 'sprite';
-    img.src = artFor(char).cardSrc;
-    img.alt = char.nome;
-    img.title = char.nome;
-    img.style.animationDelay = `${(i % 8) * 0.12}s`;
-    roster.appendChild(img);
-  });
-
-  $('btn-create-bomber').onclick = () => handlers.onCreate('bomber');
-  $('btn-create-batata').onclick = () => handlers.onCreate('batata');
+  for (const mode of ['bomber', 'batata'] as const) {
+    const card = $(`btn-create-${mode}`);
+    card.onclick = () => handlers.onCreate(mode);
+    card.querySelector<HTMLElement>('.game-desc')!.textContent = MODE_META[mode].desc;
+    // Cover art is optional (docs/prompt-capas.md) — the emoji tile stays
+    // behind it and takes over when the file doesn't exist. The img may have
+    // already failed before this handler attaches (it loads with the HTML).
+    const img = card.querySelector<HTMLImageElement>('.game-cover img')!;
+    img.onerror = () => img.remove();
+    if (img.complete && img.naturalWidth === 0) img.remove();
+  }
 
   const input = $<HTMLInputElement>('inp-code');
   if (handlers.initialCode) input.value = handlers.initialCode;

@@ -85,30 +85,38 @@
         margin-top: -0.4rem;
       }
       .intro-tagline { color: var(--muted); font-size: 0.95rem; }
-      #intro-roster { display: flex; gap: 0.9rem; margin: 0.6rem 0 0.4rem; flex-wrap: wrap; justify-content: center; }
-      #intro-roster img {
-        width: 64px; height: 64px; object-fit: contain;
-        animation: roster-bob 1.4s ease-in-out infinite;
+      .select-title { font-size: clamp(2rem, 6vw, 3.4rem); }
+      #game-select {
+        display: flex; gap: 1.4rem; flex-wrap: wrap; justify-content: center;
+        margin-top: 0.4rem;
       }
-      @keyframes roster-bob {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-7px); }
+      button.game-card {
+        width: min(370px, 84vw);
+        padding: 0; overflow: hidden; text-align: center;
+        background: var(--panel); border: 2px solid #32324e; border-radius: 18px;
+        display: flex; flex-direction: column;
+        transition: transform 0.12s, border-color 0.15s, box-shadow 0.15s;
       }
-      #intro-actions {
-        display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
-        align-items: stretch; margin-top: 0.3rem;
+      button.game-card:hover {
+        transform: translateY(-4px); border-color: var(--accent);
+        box-shadow: 0 14px 44px rgba(255, 184, 48, 0.16);
+        background: var(--panel);
       }
-      .intro-card {
-        background: var(--panel); border: 2px solid #32324e; border-radius: 16px;
-        padding: 1rem 1.3rem 0.9rem; min-width: 280px;
-        display: flex; flex-direction: column; gap: 0.7rem; align-items: center;
+      .game-cover {
+        position: relative; display: flex; align-items: center; justify-content: center;
+        aspect-ratio: 16 / 10; width: 100%;
+        background:
+          radial-gradient(ellipse at 50% 80%, rgba(255, 184, 48, 0.12), transparent 60%),
+          linear-gradient(180deg, #1a1a2e, #23233c);
       }
-      .intro-card h3 {
-        font-size: 0.82rem; letter-spacing: 0.2em; text-transform: uppercase;
-        color: var(--muted); font-weight: 700;
+      .game-cover-fallback { font-size: 4.2rem; filter: drop-shadow(0 6px 18px rgba(0,0,0,0.5)); }
+      .game-cover img {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; image-rendering: pixelated;
       }
-      .intro-create { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; }
-      .intro-join { display: flex; gap: 0.6rem; }
+      .game-name { font-weight: 800; font-size: 1.25rem; padding: 0.7rem 0 0.1rem; }
+      .game-desc { color: var(--muted); font-size: 0.82rem; padding: 0 1rem 0.85rem; line-height: 1.35; }
+      .intro-join { display: flex; gap: 0.6rem; align-items: center; margin-top: 0.2rem; }
       #inp-code {
         font: inherit; color: inherit; background: var(--panel-2);
         border: 2px solid #3a3a5c; border-radius: 10px;
@@ -295,29 +303,33 @@
   </head>
   <body>
     <div id="screen-intro" class="screen">
-      <p class="intro-kicker">o ritual sagrado da retro</p>
-      <h1 class="intro-title">Jogo da Retro</h1>
-      <div class="intro-sub">💣 Bomber Royale · 🥔 Batata-Quente</div>
-      <div id="intro-roster"></div>
-      <p class="intro-tagline">O último colocado organiza o jogo da próxima retro. 😈</p>
-      <div id="intro-actions">
-        <div class="intro-card">
-          <h3>Criar sala</h3>
-          <div class="intro-create">
-            <button id="btn-create-bomber" class="primary">💣 Bomber Royale</button>
-            <button id="btn-create-batata" class="primary">🥔 Batata-Quente</button>
-          </div>
-          <p class="hint">escolha o jogo — você vira o host e recebe um código</p>
-        </div>
-        <div class="intro-card">
-          <h3>Entrar em sala</h3>
-          <div class="intro-join">
-            <input id="inp-code" maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false" />
-            <button id="btn-join">▶ Entrar</button>
-          </div>
-          <p class="hint">pega o código com quem criou a sala</p>
-        </div>
+      <p class="intro-kicker">jogo da retro · o ritual sagrado</p>
+      <h1 class="intro-title select-title">Escolha o jogo</h1>
+      <div id="game-select">
+        <button class="game-card" id="btn-create-bomber">
+          <span class="game-cover">
+            <span class="game-cover-fallback">💣</span>
+            <img src="/capas/bomber.png" alt="" />
+          </span>
+          <span class="game-name">Bomber Royale</span>
+          <span class="game-desc"></span>
+        </button>
+        <button class="game-card" id="btn-create-batata">
+          <span class="game-cover">
+            <span class="game-cover-fallback">🥔</span>
+            <img src="/capas/batata.png" alt="" />
+          </span>
+          <span class="game-name">Batata-Quente</span>
+          <span class="game-desc"></span>
+        </button>
       </div>
+      <p class="hint">clique num jogo para criar a sala — você vira o host e recebe um código</p>
+      <div class="intro-join">
+        <span class="hint">já tem um código?</span>
+        <input id="inp-code" maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false" />
+        <button id="btn-join">▶ Entrar</button>
+      </div>
+      <p class="intro-tagline">O último colocado organiza o jogo da próxima retro. 😈</p>
       <p class="hint" id="intro-status">conectando…</p>
     </div>
 
