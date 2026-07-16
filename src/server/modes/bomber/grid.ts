@@ -22,8 +22,13 @@ export function gridSizeFor(players: number): { w: number; h: number } {
   return BOMBER.GRID_SIZES[BOMBER.GRID_SIZES.length - 1]!;
 }
 
+/** Nearest odd coordinate at or after v — odd cells are never pillars. */
+const odd = (v: number): number => (v % 2 === 0 ? v + 1 : v);
+
 /** 4 interior corners + 4 edge midpoints + center — 9 spawns (whole roster).
- * The center sits one row below the exact middle, which is a pillar. */
+ * Corners and edge midpoints always have an odd coordinate on the border
+ * side; the center must be forced to odd×odd or it can land on a pillar
+ * (21×15 put the 9th player inside the (10,8) pillar — spawned stuck). */
 export function spawnsFor(w: number, h: number): { x: number; y: number }[] {
   return [
     { x: 1, y: 1 },
@@ -34,7 +39,7 @@ export function spawnsFor(w: number, h: number): { x: number; y: number }[] {
     { x: w - 2, y: Math.floor(h / 2) },
     { x: Math.floor(w / 2), y: h - 2 },
     { x: 1, y: Math.floor(h / 2) },
-    { x: Math.floor(w / 2), y: Math.floor(h / 2) + 1 },
+    { x: odd(Math.floor(w / 2)), y: odd(Math.floor(h / 2)) },
   ];
 }
 
