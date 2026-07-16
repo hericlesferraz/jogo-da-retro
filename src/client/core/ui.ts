@@ -102,9 +102,16 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
   const me = view.players.find((p) => p.id === myId) ?? null;
   const isHost = myId !== null && view.hostId === myId;
 
-  const modeMeta = MODE_META[view.modeId];
-  $('lobby-title').textContent = `${modeMeta.icon} ${modeMeta.nome}`;
   $('lobby-room').innerHTML = `sala: <strong>${view.code}</strong>`;
+
+  // Command guide — something to read while the others pick.
+  const actions: [string, string][] =
+    view.modeId === 'batata'
+      ? [['WASD / setas', 'mover'], ['espaço', 'esquiva'], ['shift / E', 'habilidade']]
+      : [['WASD / setas', 'mover'], ['espaço', 'bomba'], ['shift / E', 'habilidade']];
+  $('lobby-guide').innerHTML = actions
+    .map(([key, act]) => `<span class="kbd">${key}</span> ${act}`)
+    .join('<span class="guide-sep">·</span>');
 
   // default preview: what I browsed > my character > first free > first
   if (!previewCharId) {
@@ -182,19 +189,13 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
     if (p.isBot) tags.push('🤖');
     if (!p.connected) tags.push('📴 desconectado');
     else if (p.spectator) tags.push('👀 espectador');
-    else tags.push(p.ready ? '✅ pronto' : '⌛');
+    else if (!p.characterId) tags.push('⌛');
     who.textContent = tags.join(' · ');
     row.appendChild(who);
     list.appendChild(row);
   }
 
-  // controls
-  const readyBtn = $<HTMLButtonElement>('btn-ready');
-  readyBtn.disabled = !me || me.spectator || !me.characterId;
-  readyBtn.textContent = me?.ready ? '❌ Cancelar pronto' : 'Estou pronto!';
-  readyBtn.classList.toggle('primary', !me?.ready);
-  readyBtn.onclick = () => socket.emit('lobby:ready', !me?.ready);
-
+  // controls — picking a character IS being ready; only the host has actions
   const hostBox = $('host-controls');
   hostBox.hidden = !isHost;
   if (isHost) {
@@ -212,19 +213,17 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
     $('btn-add-bot').onclick = () => socket.emit('lobby:addBot');
 
     const entrants = view.players.filter((p) => p.characterId);
-    const humansPending = entrants.filter((p) => !p.isBot && p.connected && !p.ready);
     const startBtn = $<HTMLButtonElement>('btn-start');
-    startBtn.disabled = entrants.length < MIN_PLAYERS_TO_START || humansPending.length > 0;
+    startBtn.disabled = entrants.length < MIN_PLAYERS_TO_START;
     startBtn.onclick = () => socket.emit('lobby:start');
     $('lobby-hint').textContent =
       entrants.length < MIN_PLAYERS_TO_START
         ? `Precisa de pelo menos ${MIN_PLAYERS_TO_START} jogadores (bots contam).`
-        : humansPending.length > 0
-          ? `Esperando ficar pronto: ${humansPending.map((p) => nameOf(view, p.id)).join(', ')}`
-          : 'Tudo pronto — bora! 🚀';
+        : 'Pode iniciar — quem não escolheu personagem assiste e entra na próxima.';
   } else {
-    $('lobby-hint').innerHTML =
-      `Escolha seu personagem e marque pronto.<br />${modeMeta.controles}`;
+    $('lobby-hint').textContent = me?.characterId
+      ? 'Esperando o host iniciar a partida…'
+      : 'Escolha seu personagem — o host inicia com quem já escolheu.';
   }
 }
 

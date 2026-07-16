@@ -71,10 +71,10 @@ export type MatchPhase =
   | 'intermission'
   | 'podium';
 
+/** Picking a character IS being ready — the host starts with whoever chose. */
 export interface LobbyPlayer {
   id: PlayerId;
   characterId: string | null;
-  ready: boolean;
   connected: boolean;
   isHost: boolean;
   isBot: boolean;

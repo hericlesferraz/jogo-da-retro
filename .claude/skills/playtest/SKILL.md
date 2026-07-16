@@ -14,7 +14,7 @@ Objetivo: deixar o jogo rodando com N jogadores (padrão 2) prontos para testar 
    - Com as ferramentas do Chrome (claude-in-chrome): `tabs_create_mcp` + `navigate`.
    - Sem elas: sugira ao usuário abrir `http://localhost:5173` manualmente.
    - **Importante**: abas no mesmo navegador compartilham `localStorage` → mesmo token → mesmo jogador. Para múltiplos jogadores na mesma máquina, varie a origem: `http://localhost:5173`, `http://127.0.0.1:5173` (e, se precisar de mais, o IP da máquina na rede local). Janela anônima também funciona.
-3. **Preencher a sala**: na primeira aba, clique no jogo desejado em "Criar sala" (💣/🥔) — ela vira host e o lobby mostra o **código de 4 letras**. Nas outras abas, digite o código em "Entrar em sala". Em cada aba: selecione um card, confirme com "Escolher <nome>" e clique "Estou pronto". Para encher a partida sem mais abas, use "🤖 + bot" (host).
+3. **Preencher a sala**: na primeira aba, clique no jogo desejado (💣/🥔) — ela vira host e o lobby mostra o **código de 4 letras**. Nas outras abas, digite o código em "Entrar em sala". Em cada aba: selecione um card e confirme com "Escolher <nome>" (escolher = estar pronto; não há ready-check). Para encher a partida sem mais abas, use "🤖 + bot" (host).
 4. **Iniciar**: host clica "▶ Iniciar partida". O jogo é fixo por sala — para trocar de jogo, crie outra sala.
 5. **Validação rápida sem navegador**: `npx tsx tools/smoke-match.ts` (fluxo até a primeira morte, ~15s) ou `--full` (partida inteira até o pódio, ≤ ~3min). Para a batata: `--batata` / `--batata --full` (ou `npm run smoke:batata[:full]`).
 

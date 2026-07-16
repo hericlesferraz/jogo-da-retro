@@ -54,7 +54,6 @@ interface PlayerState {
   token: string;
   socket: IoSocket | null;
   characterId: string | null;
-  ready: boolean;
   isBot: boolean;
   spectator: boolean;
   input: PlayerInput;
@@ -129,7 +128,6 @@ export class Room {
     socket.on('lobby:selectCharacter', (characterId) =>
       this.selectCharacter(player.id, characterId),
     );
-    socket.on('lobby:ready', (ready) => this.setReady(player.id, ready === true));
     socket.on('lobby:rounds', (rounds) => this.setRounds(player.id, rounds));
     socket.on('lobby:addBot', () => this.addBot(player.id));
     socket.on('lobby:removeBot', (pid) => this.removeBot(player.id, pid));
@@ -150,7 +148,6 @@ export class Room {
       token,
       socket: null,
       characterId: null,
-      ready: false,
       isBot: false,
       // Mid-match joiners watch now and can pick a character for the next match.
       spectator: this.phase !== 'lobby',
@@ -168,7 +165,6 @@ export class Room {
     player.input = { ...IDLE_INPUT };
     if (this.phase === 'lobby') {
       player.removeAt = Date.now() + LOBBY_DISCONNECT_GRACE_MS;
-      player.ready = false;
     }
     const anyHuman = [...this.players.values()].some((p) => !p.isBot && p.socket);
     if (!anyHuman && this.abandonedAt === null) this.abandonedAt = Date.now();
@@ -202,7 +198,6 @@ export class Room {
     }
     if (characterId === null) {
       player.characterId = null;
-      player.ready = false;
       return this.broadcastView();
     }
     if (typeof characterId !== 'string' || !getCharacter(characterId)) return;
@@ -218,16 +213,6 @@ export class Room {
       if (p.characterId === characterId) return p;
     }
     return null;
-  }
-
-  private setReady(pid: PlayerId, ready: boolean): void {
-    const player = this.players.get(pid);
-    if (!player || this.phase !== 'lobby') return;
-    if (ready && !player.characterId) {
-      return this.refuse(pid, 'Escolha um personagem antes de ficar pronto.');
-    }
-    player.ready = ready;
-    this.broadcastView();
   }
 
   private setRounds(pid: PlayerId, rounds: unknown): void {
@@ -250,7 +235,6 @@ export class Room {
       token: '',
       socket: null,
       characterId: pick.id,
-      ready: true,
       isBot: true,
       spectator: false,
       input: { ...IDLE_INPUT },
@@ -273,13 +257,11 @@ export class Room {
   private startMatch(pid: PlayerId): void {
     if (pid !== this.hostId) return this.refuse(pid, 'Só o host pode iniciar.');
     if (this.phase !== 'lobby') return;
+    // Picking a character is being ready: the host starts with whoever chose;
+    // everyone else watches and joins the next match.
     const entrants = [...this.players.values()].filter((p) => p.characterId);
     if (entrants.length < MIN_PLAYERS_TO_START) {
       return this.refuse(pid, `Precisa de pelo menos ${MIN_PLAYERS_TO_START} jogadores.`);
-    }
-    const notReady = entrants.filter((p) => !p.isBot && p.socket && !p.ready);
-    if (notReady.length > 0) {
-      return this.refuse(pid, 'Todo mundo precisa estar pronto.');
     }
 
     this.participants = entrants.map((p) => p.id);
@@ -329,7 +311,6 @@ export class Room {
     this.mode = null;
     this.currentRound = 0;
     for (const p of this.players.values()) {
-      p.ready = p.isBot;
       p.spectator = false;
       if (!p.isBot && !p.socket) p.removeAt = Date.now(); // sweep the disconnected
     }
@@ -431,7 +412,6 @@ export class Room {
     const players: LobbyPlayer[] = [...this.players.values()].map((p) => ({
       id: p.id,
       characterId: p.characterId,
-      ready: p.ready,
       connected: p.isBot || p.socket !== null,
       isHost: p.id === this.hostId,
       isBot: p.isBot,

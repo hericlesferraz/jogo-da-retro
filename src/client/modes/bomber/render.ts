@@ -9,6 +9,7 @@ import type {
   GameEvent,
   PlayerId,
 } from '../../../shared/types';
+import { beep, boom } from '../../core/audio';
 import { ABILITY_META, characterOf, POWERUP_META } from '../../core/characters';
 import { artFor, spriteBox } from '../../core/sprites';
 
@@ -32,6 +33,8 @@ export class BomberRenderer {
   private flameSeen = new Map<string, number>();
   private lastPos = new Map<PlayerId, { x: number; y: number; movingUntil: number }>();
   private shakeUntil = 0;
+  /** Chained bombs emit one explosion event each — one boom is enough. */
+  private lastBoomAt = 0;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -55,6 +58,10 @@ export class BomberRenderer {
     for (const ev of events) {
       switch (ev.type) {
         case 'explosion': {
+          if (now - this.lastBoomAt > 120) {
+            this.lastBoomAt = now;
+            boom();
+          }
           this.shakeUntil = Math.max(this.shakeUntil, now + 180);
           const center = ev.cells[0];
           if (center) {
@@ -143,6 +150,7 @@ export class BomberRenderer {
           this.shakeUntil = Math.max(this.shakeUntil, now + 350);
           break;
         case 'bombPlaced':
+          beep(150, 60, 0.05, 'sine');
           this.fx.push({
             type: 'ring',
             x: ev.x + 0.5,
@@ -279,11 +287,15 @@ export class BomberRenderer {
       ctx.beginPath();
       ctx.ellipse(px, py + cell * 0.3, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = b.fuse < 0.25 ? '#4a1d24' : '#22222e';
+      // Light outline — the dark body was unreadable on the dark floor.
+      ctx.fillStyle = b.fuse < 0.25 ? '#5c2430' : '#33334d';
       ctx.beginPath();
       ctx.arc(px, py, r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.strokeStyle = b.fuse < 0.25 ? 'rgba(255, 170, 170, 0.95)' : 'rgba(235, 240, 255, 0.9)';
+      ctx.lineWidth = Math.max(2, cell * 0.06);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
       ctx.beginPath();
       ctx.arc(px - r * 0.3, py - r * 0.35, r * 0.32, 0, Math.PI * 2);
       ctx.fill();

@@ -31,7 +31,6 @@ export interface ClientToServer {
   'room:create': (payload: CreateRoomPayload, ack: (reply: RoomReply) => void) => void;
   'room:join': (payload: JoinRoomPayload, ack: (reply: RoomReply) => void) => void;
   'lobby:selectCharacter': (characterId: string | null) => void;
-  'lobby:ready': (ready: boolean) => void;
   'lobby:rounds': (rounds: number) => void; // host only
   'lobby:addBot': () => void; // host only
   'lobby:removeBot': (playerId: PlayerId) => void; // host only

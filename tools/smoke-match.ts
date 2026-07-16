@@ -136,15 +136,13 @@ async function main(): Promise<void> {
   await waitFor(alice, 'seleção refletida', 3000, () =>
     alice.view.players.some((p) => p.characterId === CHAR_B),
   );
-  alice.socket.emit('lobby:ready', true);
-  bob.socket.emit('lobby:ready', true);
   alice.socket.emit('lobby:addBot');
   alice.socket.emit('lobby:addBot');
   alice.socket.emit('lobby:rounds', 1);
   await waitFor(alice, 'bots no lobby', 3000, () =>
     alice.view.players.filter((p) => p.isBot).length === 2,
   );
-  ok(`personagens escolhidos, prontos, 2 bots, 1 rodada de ${MODE}`);
+  ok(`personagens escolhidos, 2 bots, 1 rodada de ${MODE}`);
 
   alice.socket.emit('lobby:start');
   await waitFor(alice, 'countdown', 3000, () => phaseIs(alice, 'countdown'));
