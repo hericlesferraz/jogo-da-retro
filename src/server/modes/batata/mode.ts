@@ -106,6 +106,8 @@ export class BatataMode implements ServerMode, AbilityHost {
   private nextDecoyId = 1;
   private theme: BatataTheme = 'noite';
   private roundsStarted = 0;
+  /** Eliminations until the final duel — sizes each shrink step. */
+  private shrinkSteps = 1;
 
   private abilities: AbilitySystem;
   private botMemory = new Map<PlayerId, BotMemory>();
@@ -147,6 +149,7 @@ export class BatataMode implements ServerMode, AbilityHost {
     this.abilities.resetAll();
     this.botMemory.clear();
 
+    this.shrinkSteps = Math.max(1, playerIds.length - 2);
     const spawns = spawnPoints(Math.max(playerIds.length, 2));
     playerIds.forEach((pid, i) => {
       const spawn = spawns[i % spawns.length]!;
@@ -369,14 +372,11 @@ export class BatataMode implements ServerMode, AbilityHost {
 
   private shrink(): void {
     this.shrinkStage += 1;
-    const ix = Math.min(
-      BATATA.SHRINK_STEP_X * this.shrinkStage,
-      (W - BATATA.MIN_ARENA_W) / 2,
-    );
-    const iy = Math.min(
-      BATATA.SHRINK_STEP_Y * this.shrinkStage,
-      (H - BATATA.MIN_ARENA_H) / 2,
-    );
+    // Progress toward the final-duel box: by the time 2 players remain the
+    // arena is FINAL_ARENA_W × FINAL_ARENA_H, regardless of player count.
+    const t = Math.min(1, this.shrinkStage / this.shrinkSteps);
+    const ix = ((W - BATATA.FINAL_ARENA_W) / 2) * t;
+    const iy = ((H - BATATA.FINAL_ARENA_H) / 2) * t;
     this.boundsTarget = { minX: ix, minY: iy, maxX: W - ix, maxY: H - iy };
     this.events.push({ type: 'arenaShrunk', stage: this.shrinkStage });
   }

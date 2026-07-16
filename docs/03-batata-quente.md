@@ -56,7 +56,7 @@ Decisões tomadas ao implementar (valores em `src/shared/constants.ts`, bloco `B
 - **Controles**: espaço = esquiva (imunidade breve + impulso na direção olhada; o portador não pode esquivar); Shift/E = habilidade, como no Bomber.
 - **Skins do modo**: arte em `src/client/public/personagens/batata/` com os mesmos nomes de arquivo é usada automaticamente na arena da Batata (fallback por imagem para a arte padrão) — dá para especializar o visual sem mexer em config nem código.
 - **Arena**: 20×13 unidades, 9 obstáculos aleatórios (caixas/pilares) com folga mínima de 1,7 entre si e das paredes — nunca fecha rota de fuga. Toque = distância entre centros ≤ 0,85.
-- **Encolhimento**: 1,15 (x) / 0,7 (y) por lado a cada eliminação; as paredes deslizam a 2 u/s (empurram os jogadores) até o mínimo de 4,5×3,5.
+- **Encolhimento**: um degrau por eliminação, com o passo dimensionado pelo nº de jogadores para que **o duelo final aconteça sempre numa arena de 8×6** (com passo fixo, 9 jogadores espremiam o 1v1 final em 4,5×3,5 — feedback de playtest). As paredes deslizam a 2 u/s e empurram os jogadores.
 - **Batata no chão** (truque do decoy): o fuse continua queimando; se estourar no chão ninguém é eliminado (renasce normal); se ninguém encostar por 4s, ela gruda no sobrevivente mais próximo (anti-trava). O portador **não** se engana com o próprio clone (nasceria nos pés dele = descarte grátis; achado em playtest).
 - **Shield**: bloquear um repasse também dá 1,5s de imunidade ao bloqueador (senão o portador re-encostaria no tick seguinte, com o escudo já consumido).
 - **Anti-camping**: o bônus acumula até +100% no máximo.

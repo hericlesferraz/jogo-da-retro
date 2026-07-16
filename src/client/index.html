@@ -127,102 +127,178 @@
       #inp-code:focus { outline: none; border-color: var(--accent); }
       #intro-status { min-height: 1.1em; }
 
-      /* ---------------------------------------------------------- lobby */
-      #screen-lobby { align-items: center; overflow-y: auto; padding: 1.1rem; gap: 0.9rem; }
+      /* ------------------------------------------ lobby (terminal arcade) */
+      #screen-lobby {
+        align-items: center; justify-content: center; justify-content: safe center;
+        overflow-y: auto; padding: 1.2rem;
+        background: #080c17;
+        font-family: ui-monospace, 'Cascadia Mono', 'JetBrains Mono', Consolas, monospace;
+      }
+      /* tron floor + ceiling grids */
+      #screen-lobby::before, #screen-lobby::after {
+        content: ''; position: fixed; left: -25%; right: -25%; height: 72%;
+        background-image:
+          linear-gradient(rgba(96, 150, 255, 0.15) 1.5px, transparent 1.5px),
+          linear-gradient(90deg, rgba(96, 150, 255, 0.15) 1.5px, transparent 1.5px);
+        background-size: 76px 76px;
+        pointer-events: none;
+      }
+      #screen-lobby::before {
+        bottom: -6%;
+        transform: perspective(480px) rotateX(58deg);
+        transform-origin: 50% 100%;
+        -webkit-mask-image: linear-gradient(to top, black 30%, transparent);
+        mask-image: linear-gradient(to top, black 30%, transparent);
+      }
+      #screen-lobby::after {
+        top: -6%; opacity: 0.5;
+        transform: perspective(480px) rotateX(-58deg);
+        transform-origin: 50% 0%;
+        -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent);
+        mask-image: linear-gradient(to bottom, black 30%, transparent);
+      }
+      #lobby-layout {
+        position: relative; z-index: 1;
+        display: flex; gap: 2.2rem; align-items: center; justify-content: center;
+        flex-wrap: wrap;
+        /* explicit width: intrinsic sizing of wrap containers under-measures
+           shrinkable items and wraps even with room to spare */
+        width: min(990px, 100%);
+      }
+      #lobby-panel {
+        position: relative;
+        width: min(620px, 94vw);
+        background: rgba(11, 17, 34, 0.8);
+        border: 1px solid rgba(102, 184, 255, 0.22);
+        padding: 1.5rem 1.8rem 1.4rem;
+        display: flex; flex-direction: column; gap: 0.95rem;
+      }
+      /* HUD corner brackets */
+      #lobby-panel::before, #lobby-panel::after, #lobby-panel .corner {
+        content: ''; position: absolute; width: 26px; height: 26px;
+        border: 2px solid #66b8ff; pointer-events: none;
+      }
+      #lobby-panel::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+      #lobby-panel::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+      #lobby-panel .corner.tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+      #lobby-panel .corner.bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
       #screen-lobby header { text-align: center; }
-      #screen-lobby h1 { font-size: 1.45rem; letter-spacing: 0.02em; }
-      #lobby-room { margin-top: 0.2rem; font-size: 0.95rem; }
+      #lobby-room {
+        font-size: 1.3rem; font-weight: 700; letter-spacing: 0.28em;
+        text-transform: uppercase;
+      }
       #lobby-room strong {
-        color: var(--accent); font-size: 1.15rem; letter-spacing: 0.25em;
-        margin-left: 0.15em;
+        color: #ffd23f; font-size: 1.7rem; letter-spacing: 0.3em; margin-left: 0.2em;
+        text-shadow: 0 0 16px rgba(255, 210, 63, 0.6);
       }
-      #lobby-status { color: var(--muted); margin-top: 0.15rem; font-size: 0.88rem; }
-      #lobby-main {
-        display: flex; gap: 1rem; width: min(980px, 100%);
-        align-items: stretch; flex-wrap: wrap; justify-content: center;
+      #lobby-share {
+        color: #6fc3ff; font-size: 0.68rem; letter-spacing: 0.3em;
+        text-transform: uppercase; margin-top: 0.5rem;
       }
+      #lobby-title { color: var(--muted); font-size: 0.8rem; margin-top: 0.45rem; }
+      #lobby-status { color: #55607e; margin-top: 0.2rem; font-size: 0.7rem; }
       #char-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(104px, 1fr));
-        gap: 0.65rem;
-        flex: 1 1 440px;
-        align-content: start;
+        display: grid; grid-template-columns: repeat(4, minmax(96px, 1fr));
+        gap: 0.6rem;
       }
       .char-card {
-        background: var(--panel);
-        border: 2px solid #32324e;
-        border-radius: 12px;
-        padding: 0.5rem 0.3rem 0.45rem;
+        background: #0d1531;
+        border: 1px solid #2b3a63;
+        border-radius: 8px;
+        padding: 0.5rem 0.3rem 0.4rem;
         text-align: center;
         cursor: pointer;
         position: relative;
-        transition: transform 0.08s, border-color 0.15s, box-shadow 0.15s;
+        transition: transform 0.08s, border-color 0.15s, box-shadow 0.15s, background 0.15s;
       }
-      .char-card:hover { transform: translateY(-2px); border-color: #52527a; }
-      .char-card img, .char-card canvas { width: 58px; height: 58px; object-fit: contain; }
-      .char-card .char-name { font-weight: 700; margin-top: 0.15rem; font-size: 0.85rem; }
-      .char-card .char-ability-icon { position: absolute; top: 5px; left: 7px; font-size: 0.85rem; }
-      .char-card.preview { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-      .char-card.taken:not(.mine) { opacity: 0.45; }
-      .char-card.mine { border-color: var(--ok); }
+      .char-card:hover { transform: translateY(-2px); border-color: #66b8ff; }
+      .char-card img, .char-card canvas { width: 56px; height: 56px; object-fit: contain; }
+      .char-card .char-name { font-weight: 700; margin-top: 0.2rem; font-size: 0.72rem; letter-spacing: 0.05em; }
+      .char-card .char-ability-icon { position: absolute; top: 4px; left: 6px; font-size: 0.8rem; }
+      .char-card.preview { border-color: #66b8ff; box-shadow: 0 0 10px rgba(102, 184, 255, 0.35); }
+      .char-card.taken:not(.mine) { opacity: 0.4; }
+      .char-card.mine {
+        border-color: #ffd23f; background: #17203e;
+        box-shadow: 0 0 12px rgba(255, 210, 63, 0.4);
+      }
       .char-card .char-tag {
-        position: absolute; top: 4px; right: 6px; font-size: 0.66rem;
-        background: var(--panel-2); border-radius: 6px; padding: 1px 5px; color: var(--muted);
+        position: absolute; top: 3px; right: 5px; font-size: 0.6rem;
+        background: rgba(0, 0, 0, 0.45); border-radius: 5px; padding: 1px 5px; color: var(--muted);
       }
 
-      /* preview panel (seleção estilo fighting game) */
+      /* the chosen one — floats big over the grid, outside the panel */
       #char-preview {
-        flex: 0 1 330px; min-width: 290px;
-        background: var(--panel); border: 2px solid #32324e; border-radius: 16px;
-        padding: 1rem 1.1rem 1.1rem;
+        position: relative; z-index: 1;
+        flex: 0 0 330px;
         display: flex; flex-direction: column; align-items: center; gap: 0.55rem;
       }
       #preview-stage {
-        position: relative; width: 100%; height: 218px;
+        position: relative; width: 100%; height: 300px;
         display: flex; align-items: flex-end; justify-content: center;
-        border-radius: 12px;
-        background:
-          radial-gradient(ellipse at 50% 68%, var(--preview-glow, rgba(255,255,255,0.08)), transparent 62%),
-          linear-gradient(180deg, #171728, #1e1e33);
-        overflow: hidden;
+        background: radial-gradient(ellipse at 50% 68%, var(--preview-glow, rgba(120, 170, 255, 0.1)), transparent 65%);
       }
       #preview-stage::after {
-        content: ''; position: absolute; bottom: 14px; left: 50%;
-        width: 120px; height: 20px; transform: translateX(-50%);
-        background: radial-gradient(ellipse, rgba(0,0,0,0.55), transparent 70%);
+        content: ''; position: absolute; bottom: 8px; left: 50%;
+        width: 150px; height: 24px; transform: translateX(-50%);
+        background: radial-gradient(ellipse, rgba(0, 0, 0, 0.6), transparent 70%);
       }
       #preview-sprite {
-        height: 180px; width: 180px; object-fit: contain; z-index: 1;
-        margin-bottom: 18px;
+        height: 270px; width: 270px; object-fit: contain; z-index: 1;
+        margin-bottom: 12px;
+        filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55));
         animation: preview-bob 1.6s ease-in-out infinite;
       }
       @keyframes preview-bob {
         0%, 100% { transform: translateY(0); }
         50% { transform: translateY(-6px); }
       }
-      #preview-name { font-size: 1.5rem; font-weight: 800; letter-spacing: 0.02em; }
-      #preview-status { font-size: 0.8rem; color: var(--muted); margin-top: -0.35rem; }
+      #preview-name {
+        font-size: 1.65rem; font-weight: 800; letter-spacing: 0.32em;
+        text-transform: uppercase; text-align: center; padding-left: 0.32em;
+        text-shadow: 0 0 18px rgba(111, 195, 255, 0.35);
+      }
+      #preview-status { font-size: 0.72rem; color: var(--muted); margin-top: -0.3rem; letter-spacing: 0.1em; }
       #preview-ability {
-        width: 100%; background: var(--panel-2); border-radius: 10px;
-        padding: 0.55rem 0.75rem; display: flex; gap: 0.6rem; align-items: center;
+        width: 100%; background: rgba(13, 21, 49, 0.85);
+        border: 1px solid #2b3a63; border-radius: 8px;
+        padding: 0.5rem 0.7rem; display: flex; gap: 0.6rem; align-items: center;
       }
-      #preview-ability .ab-icon { font-size: 1.5rem; }
-      #preview-ability .ab-name { font-weight: 700; font-size: 0.95rem; }
-      #preview-ability .ab-desc { color: var(--muted); font-size: 0.78rem; line-height: 1.3; }
-      #btn-pick { width: 100%; font-size: 1.02rem; }
+      #preview-ability .ab-icon { font-size: 1.4rem; }
+      #preview-ability .ab-name { font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; }
+      #preview-ability .ab-desc { color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
+      #btn-pick { width: 100%; font-size: 0.95rem; }
 
-      #lobby-bottom {
-        width: min(980px, 100%);
-        display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap;
-        background: var(--panel); border-radius: 14px; padding: 0.85rem 1rem;
+      #lobby-bottom { display: flex; flex-direction: column; gap: 0.8rem; }
+      #player-list {
+        display: flex; flex-direction: column; gap: 0.3rem;
+        border-top: 1px solid rgba(102, 184, 255, 0.15);
+        border-bottom: 1px solid rgba(102, 184, 255, 0.15);
+        padding: 0.55rem 0.2rem;
       }
-      #player-list { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 0.35rem; }
-      .player-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.92rem; }
-      .player-row .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-      .player-row .who { color: var(--muted); font-size: 0.78rem; }
-      #lobby-controls { display: flex; flex-direction: column; gap: 0.6rem; align-items: stretch; min-width: 220px; }
-      #host-controls { display: flex; flex-direction: column; gap: 0.6rem; }
-      #host-controls .row { display: flex; gap: 0.6rem; align-items: center; justify-content: space-between; }
+      .player-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
+      .player-row .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+      .player-row .who { color: var(--muted); font-size: 0.68rem; margin-left: auto; letter-spacing: 0.08em; }
+      #lobby-controls {
+        display: flex; flex-wrap: wrap; gap: 0.6rem;
+        align-items: center; justify-content: center;
+      }
+      #lobby-hint { text-align: center; }
+      #screen-lobby button {
+        font-family: inherit; text-transform: uppercase; letter-spacing: 0.1em;
+        font-weight: 700; font-size: 0.82rem; border-radius: 8px;
+      }
+      #screen-lobby select { font-family: inherit; }
+      #host-controls { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; justify-content: center; }
+      #host-controls .row { display: flex; gap: 0.5rem; align-items: center; }
+      #host-controls label { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+      #btn-start {
+        background: linear-gradient(180deg, #ff9a3d, #e14e2a);
+        border-color: #ff9a3d; color: #fff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+      }
+      #btn-start:hover { background: linear-gradient(180deg, #ffab55, #ef5c37); border-color: #ffab55; }
+      #btn-leave { background: #7e1f2b; border-color: #c53a48; color: #ffd9d9; }
+      #btn-leave:hover { background: #9c2735; border-color: #e05464; }
 
       /* ----------------------------------------------------------- game */
       #screen-game { align-items: center; justify-content: center; background: #0d0d17; }
@@ -334,13 +410,33 @@
     </div>
 
     <div id="screen-lobby" class="screen" hidden>
-      <header>
-        <h1 id="lobby-title">💣 Bomber Royale</h1>
-        <p id="lobby-room"></p>
-        <p id="lobby-status">conectando…</p>
-      </header>
-      <div id="lobby-main">
-        <div id="char-grid"></div>
+      <div id="lobby-layout">
+        <div id="lobby-panel">
+          <i class="corner tr"></i><i class="corner bl"></i>
+          <header>
+            <h1 id="lobby-room">sala: <strong>····</strong></h1>
+            <p id="lobby-share">compartilhe o código com o time!</p>
+            <p id="lobby-title">💣 Bomber Royale</p>
+            <p id="lobby-status">conectando…</p>
+          </header>
+          <div id="char-grid"></div>
+          <div id="lobby-bottom">
+            <div id="player-list"></div>
+            <div id="lobby-controls">
+              <button id="btn-ready" class="primary" disabled>Estou pronto!</button>
+              <div id="host-controls" hidden>
+                <div class="row">
+                  <label for="sel-rounds">Rodadas</label>
+                  <select id="sel-rounds"></select>
+                  <button id="btn-add-bot" title="Bot preenche a sala e joga sozinho">🤖 + bot</button>
+                </div>
+                <button id="btn-start" class="primary">▶ Iniciar partida</button>
+              </div>
+              <button id="btn-leave" title="Voltar para a tela inicial">Sair</button>
+            </div>
+            <p class="hint" id="lobby-hint">Escolha seu personagem e marque pronto.<br />Mover: WASD/setas · Bomba: espaço · Habilidade: Shift ou E</p>
+          </div>
+        </div>
         <aside id="char-preview">
           <div id="preview-stage">
             <img id="preview-sprite" class="sprite" alt="" />
@@ -356,22 +452,6 @@
           </div>
           <button id="btn-pick" class="primary"></button>
         </aside>
-      </div>
-      <div id="lobby-bottom">
-        <div id="player-list"></div>
-        <div id="lobby-controls">
-          <button id="btn-ready" class="primary" disabled>Estou pronto!</button>
-          <div id="host-controls" hidden>
-            <div class="row">
-              <label for="sel-rounds">Rodadas</label>
-              <select id="sel-rounds"></select>
-              <button id="btn-add-bot" title="Bot preenche a sala e joga sozinho">🤖 + bot</button>
-            </div>
-            <button id="btn-start" class="primary">▶ Iniciar partida</button>
-          </div>
-          <p class="hint" id="lobby-hint">Escolha seu personagem e marque pronto.<br />Mover: WASD/setas · Bomba: espaço · Habilidade: Shift ou E</p>
-          <button id="btn-leave" title="Voltar para a tela inicial">✕ Sair da sala</button>
-        </div>
       </div>
     </div>
 

@@ -14,7 +14,8 @@ export const COUNTDOWN_MS = 3_000;
 /** Grace after the round is decided (last kill animates) before scoring. */
 export const ROUND_END_GRACE_MS = 1_200;
 
-export const MAX_PLAYERS = 8;
+/** The whole roster can play (character uniqueness is the effective cap). */
+export const MAX_PLAYERS = 9;
 export const MIN_PLAYERS_TO_START = 2;
 
 /** Client renders this far behind the newest snapshot (interpolation buffer). */
@@ -112,13 +113,13 @@ export const BATATA = {
   ANTICAMP_AFTER_MS: 10_000,
   ANTICAMP_RAMP_PER_S: 0.05,
   ANTICAMP_MAX_BONUS: 1.0,
-  /** Walls close one step per elimination (units per side, per axis). */
-  SHRINK_STEP_X: 1.15,
-  SHRINK_STEP_Y: 0.7,
+  /** Walls close one step per elimination, with steps sized by the player
+   * count so the LAST duel always happens in this box — with a fixed step,
+   * 9 players squeezed the final 1v1 into nothing (playtest feedback). */
+  FINAL_ARENA_W: 8,
+  FINAL_ARENA_H: 6,
   /** How fast the walls slide to their new position, units/second. */
   SHRINK_SPEED: 2.0,
-  MIN_ARENA_W: 4.5,
-  MIN_ARENA_H: 3.5,
   OBSTACLE_COUNT: 9,
   KILL_BONUS_POINTS: 2,
 } as const;

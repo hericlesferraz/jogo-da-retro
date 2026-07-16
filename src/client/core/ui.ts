@@ -104,8 +104,7 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
 
   const modeMeta = MODE_META[view.modeId];
   $('lobby-title').textContent = `${modeMeta.icon} ${modeMeta.nome}`;
-  $('lobby-room').innerHTML =
-    `sala <strong>${view.code}</strong> — fala o código pro time entrar!`;
+  $('lobby-room').innerHTML = `sala: <strong>${view.code}</strong>`;
 
   // default preview: what I browsed > my character > first free > first
   if (!previewCharId) {

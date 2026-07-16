@@ -15,7 +15,8 @@ export const idx = (x: number, y: number): number => y * W + x;
 export const inBounds = (x: number, y: number): boolean =>
   x >= 0 && x < W && y >= 0 && y < H;
 
-/** 4 interior corners + 4 edge midpoints — 8 spawns, clockwise-ish. */
+/** 4 interior corners + 4 edge midpoints + center — 9 spawns (whole roster).
+ * The center sits one row below the exact middle, which is a pillar. */
 export const SPAWNS: { x: number; y: number }[] = [
   { x: 1, y: 1 },
   { x: W - 2, y: 1 },
@@ -25,6 +26,7 @@ export const SPAWNS: { x: number; y: number }[] = [
   { x: W - 2, y: Math.floor(H / 2) },
   { x: Math.floor(W / 2), y: H - 2 },
   { x: 1, y: Math.floor(H / 2) },
+  { x: Math.floor(W / 2), y: Math.floor(H / 2) + 1 },
 ];
 
 const isBorder = (x: number, y: number): boolean =>
