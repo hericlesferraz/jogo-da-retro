@@ -22,6 +22,13 @@ export const MIN_PLAYERS_TO_START = 2;
 export const INTERP_DELAY_MS = 100;
 
 // ---------------------------------------------------------------------------
+// Client audio
+// ---------------------------------------------------------------------------
+
+/** Background music volume — low by default: the team plays while on a call. */
+export const MUSIC_VOLUME = 0.15;
+
+// ---------------------------------------------------------------------------
 // Abilities (foundation)
 // ---------------------------------------------------------------------------
 

@@ -1,6 +1,7 @@
 import { INTERMISSION_MS } from '../shared/constants';
 import type { RoomReply } from '../shared/protocol';
 import type { GameModeId, PlayerId, RoomView } from '../shared/types';
+import { getVolume, music, setVolume } from './core/audio';
 import { characterOf } from './core/characters';
 import { setupInput } from './core/input';
 import { SnapshotBuffer } from './core/interpolation';
@@ -61,6 +62,46 @@ function leaveRoom(): void {
 }
 (document.getElementById('btn-leave') as HTMLButtonElement).onclick = leaveRoom;
 
+music.setScene('titulo');
+
+// Volume control floats over every screen: the button opens a master-volume
+// slider (0 = silence) for music AND effects — the team plays while on a
+// call, so "a bit lower" matters more than on/off.
+const soundBox = document.getElementById('sound-control') as HTMLDivElement;
+const soundBtn = document.getElementById('btn-mute') as HTMLButtonElement;
+const volumePopover = document.getElementById('volume-popover') as HTMLDivElement;
+const volumeSlider = document.getElementById('volume-slider') as HTMLInputElement;
+
+function renderSoundButton(): void {
+  const v = getVolume();
+  soundBtn.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+  soundBtn.title = `Volume: ${Math.round(v * 100)}%`;
+}
+soundBtn.onclick = () => {
+  volumePopover.hidden = !volumePopover.hidden;
+  // blur() so space (bomb/dodge) can't re-click the button mid-game
+  soundBtn.blur();
+};
+volumeSlider.oninput = () => {
+  setVolume(Number(volumeSlider.value) / 100);
+  renderSoundButton();
+};
+// A focused slider owns the arrow keys — they must not move the character.
+volumeSlider.onkeydown = (e) => e.stopPropagation();
+// Clicking anywhere else closes the popover and hands focus back to the game.
+window.addEventListener(
+  'pointerdown',
+  (e) => {
+    if (!volumePopover.hidden && !soundBox.contains(e.target as Node)) {
+      volumePopover.hidden = true;
+      volumeSlider.blur();
+    }
+  },
+  true,
+);
+volumeSlider.value = String(Math.round(getVolume() * 100));
+renderSoundButton();
+
 socket.on('connect', () => {
   setConnectionStatus(''); // status only speaks up when something is wrong
   // First load with a remembered code, or a reconnection: retake the seat.
@@ -92,6 +133,7 @@ function onRoomReply(reply: RoomReply): void {
     history.replaceState(null, '', location.pathname);
     toast(reply.error);
     showScreen('intro');
+    music.setScene('titulo');
     return;
   }
   seated = true;
@@ -124,8 +166,16 @@ function onRoomState(v: RoomView): void {
 }
 
 function applyScreens(v: RoomView): void {
-  if (!seated) showScreen('intro');
-  else showScreen(v.phase === 'lobby' ? 'lobby' : 'game');
+  if (!seated) {
+    showScreen('intro');
+    music.setScene('titulo');
+  } else if (v.phase === 'lobby') {
+    showScreen('lobby');
+    music.setScene('lobby');
+  } else {
+    showScreen('game');
+    music.setScene(v.modeId);
+  }
 }
 
 function resize(): void {

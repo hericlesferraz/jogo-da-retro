@@ -32,9 +32,11 @@ Fallback: se `musica-bomber/batata.mp3` não existir, tentar `musica-partida.mp3
 3. **Autoplay**: navegador exige gesto. O unlock de `audio.ts` já escuta o
    primeiro pointerdown/keydown — o MusicPlayer deve tentar `play()` no
    `setScene` e, se bloqueado (promise rejeitada), re-tentar no unlock.
-4. **Mute**: botão 🔊/🔇 fixo (canto inferior direito, visível em todas as
-   telas, z acima dos overlays), estado em `localStorage['retro-mute']`.
-   Mute silencia música E efeitos (beep/boom ganham o mesmo gate).
+4. **Volume**: botão 🔊/🔉/🔇 fixo (canto inferior direito, visível em todas
+   as telas, z acima dos overlays) abre um slider de **volume mestre 0–100%**
+   aplicado a música E efeitos, em `localStorage['retro-volume']` (0 =
+   silêncio; o antigo `retro-mute` migra para 0). Time em call: abaixar
+   importa mais que desligar.
 5. **Validação**: playtest — música não pode brigar com os bipes da batata
    (se brigar, baixar MUSIC_VOLUME); troca de tela faz fade sem clique; F5
    no meio da partida volta com a música certa; mute persiste.
