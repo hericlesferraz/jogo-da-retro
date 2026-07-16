@@ -234,7 +234,8 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
     }
     sel.value = String(view.roundsPerMatch);
     sel.onchange = () => socket.emit('lobby:rounds', Number(sel.value));
-    $('btn-add-bot').onclick = () => socket.emit('lobby:addBot');
+    // The previewed character rides along — the bot takes it when free.
+    $('btn-add-bot').onclick = () => socket.emit('lobby:addBot', previewCharId);
 
     const entrants = view.players.filter((p) => p.characterId);
     const startBtn = $<HTMLButtonElement>('btn-start');

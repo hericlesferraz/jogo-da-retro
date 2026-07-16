@@ -32,7 +32,9 @@ export interface ClientToServer {
   'room:join': (payload: JoinRoomPayload, ack: (reply: RoomReply) => void) => void;
   'lobby:selectCharacter': (characterId: string | null) => void;
   'lobby:rounds': (rounds: number) => void; // host only
-  'lobby:addBot': () => void; // host only
+  /** Host only. The bot takes `characterId` when it's free (the host's
+   * previewed card), otherwise a random free character. */
+  'lobby:addBot': (characterId?: string | null) => void;
   'lobby:removeBot': (playerId: PlayerId) => void; // host only
   'lobby:start': () => void; // host only
   'podium:playAgain': () => void; // host only — back to lobby, keep characters

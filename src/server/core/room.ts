@@ -129,7 +129,7 @@ export class Room {
       this.selectCharacter(player.id, characterId),
     );
     socket.on('lobby:rounds', (rounds) => this.setRounds(player.id, rounds));
-    socket.on('lobby:addBot', () => this.addBot(player.id));
+    socket.on('lobby:addBot', (characterId) => this.addBot(player.id, characterId));
     socket.on('lobby:removeBot', (pid) => this.removeBot(player.id, pid));
     socket.on('lobby:start', () => this.startMatch(player.id));
     socket.on('podium:playAgain', () => this.playAgain(player.id));
@@ -225,10 +225,14 @@ export class Room {
     this.broadcastView();
   }
 
-  private addBot(pid: PlayerId): void {
+  private addBot(pid: PlayerId, characterId?: unknown): void {
     if (pid !== this.hostId || this.phase !== 'lobby') return;
     const free = loadCharacters().filter((c) => !this.characterTakenBy(c.id));
-    const pick = free[Math.floor(Math.random() * free.length)];
+    // The host's previewed character wins when free ("+ bot" with Claude in
+    // the preview makes a Claude bot); taken/invalid falls back to random.
+    const wanted =
+      typeof characterId === 'string' ? free.find((c) => c.id === characterId) : undefined;
+    const pick = wanted ?? free[Math.floor(Math.random() * free.length)];
     if (!pick) return this.refuse(pid, 'Todos os personagens já foram escolhidos.');
     const bot: PlayerState = {
       id: `bot${this.nextBotSeq++}`,
