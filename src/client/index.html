@@ -84,7 +84,6 @@
         letter-spacing: 0.5em; text-transform: uppercase; color: var(--text);
         margin-top: -0.4rem;
       }
-      .intro-tagline { color: var(--muted); font-size: 0.95rem; }
       .select-title { font-size: clamp(2rem, 6vw, 3.4rem); }
       #game-select {
         display: flex; gap: 1.4rem; flex-wrap: wrap; justify-content: center;
@@ -310,10 +309,13 @@
         align-items: center; justify-content: center;
       }
       #lobby-hint { text-align: center; min-height: 1em; }
+      /* command guide — floats below the panel, company for the wait */
       #lobby-guide {
-        display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+        display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center;
         justify-content: center; color: var(--muted); font-size: 0.7rem;
-        border-top: 1px solid rgba(102, 184, 255, 0.15); padding-top: 0.7rem;
+        margin-top: 1.4rem; padding: 0.55rem 1.1rem;
+        background: rgba(11, 17, 34, 0.7);
+        border: 1px solid rgba(102, 184, 255, 0.15); border-radius: 8px;
       }
       #lobby-guide .kbd {
         border: 1px solid #2b3a63; border-bottom-width: 2px; border-radius: 5px;
@@ -434,14 +436,12 @@
           <span class="game-desc"></span>
         </button>
       </div>
-      <p class="hint">clique num jogo para criar a sala — você vira o host e recebe um código</p>
       <div class="intro-join">
         <span class="hint">já tem um código?</span>
         <input id="inp-code" maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false" />
         <button id="btn-join">▶ Entrar</button>
       </div>
-      <p class="intro-tagline">O último colocado organiza o jogo da próxima retro. 😈</p>
-      <p class="hint" id="intro-status">conectando…</p>
+      <p class="hint" id="intro-status"></p>
     </div>
 
     <div id="screen-lobby" class="screen tron" hidden>
@@ -467,7 +467,6 @@
               <button id="btn-leave" title="Voltar para a tela inicial">Sair</button>
             </div>
             <p class="hint" id="lobby-hint"></p>
-            <div id="lobby-guide"></div>
           </div>
         </div>
         <aside id="char-preview">
@@ -486,6 +485,7 @@
           <button id="btn-pick" class="primary"></button>
         </aside>
       </div>
+      <div id="lobby-guide"></div>
     </div>
 
     <div id="screen-game" class="screen" hidden>

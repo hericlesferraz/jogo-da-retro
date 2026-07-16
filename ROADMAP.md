@@ -33,10 +33,13 @@ O projeto é construído em sessões de trabalho. Cada jogo fica pronto (jogáve
 
 **Decisões da sessão** em `docs/03-batata-quente.md` → "Notas de implementação".
 
-## Sessão 4 — Time real e tela de seleção (16/jul/2026)
+## Sessão 4 — Time real, capas e visual terminal arcade (16/jul/2026)
 
 1. ✅ 9 personagens do time (arte do usuário) fatiados e configurados; fatiador com defringe e remoção opcional de bolsões (`--pockets`).
 2. ✅ Tela inicial virou "Escolha o jogo": capas clicáveis por jogo (criar sala) + entrada por código; capas geradas via `docs/prompt-capas.md`, com fallback de emoji quando ausentes.
+3. ✅ Visual "terminal arcade" no título e no lobby (referência do jogo anterior do time; validado num comparativo ao vivo antes×depois): grade tron, mono, cantoneiras, código em amarelo neon, preview gigante do personagem.
+4. ✅ Fluxo enxuto: fim do ready-check (escolher personagem = pronto; host inicia com quem escolheu), telas sem texto redundante, guia de comandos por tecla flutuando sob o painel, status de conexão só quando há problema.
+5. ✅ Bomber: bomba com contorno legível, boom na explosão e thump ao plantar.
 
 ## Sessão 5+ — Polimento (opcional, quando for a vez dele de novo)
 

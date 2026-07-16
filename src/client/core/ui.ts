@@ -104,14 +104,20 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
 
   $('lobby-room').innerHTML = `sala: <strong>${view.code}</strong>`;
 
-  // Command guide — something to read while the others pick.
-  const actions: [string, string][] =
-    view.modeId === 'batata'
-      ? [['WASD / setas', 'mover'], ['espaço', 'esquiva'], ['shift / E', 'habilidade']]
-      : [['WASD / setas', 'mover'], ['espaço', 'bomba'], ['shift / E', 'habilidade']];
-  $('lobby-guide').innerHTML = actions
-    .map(([key, act]) => `<span class="kbd">${key}</span> ${act}`)
-    .join('<span class="guide-sep">·</span>');
+  // Command guide — floats under the panel, company for the wait.
+  const actions: [string, string][] = [
+    ['W', 'cima'],
+    ['A', 'esquerda'],
+    ['S', 'baixo'],
+    ['D', 'direita'],
+    ['espaço', view.modeId === 'batata' ? 'esquiva' : 'bomba'],
+    ['shift / E', 'habilidade'],
+  ];
+  $('lobby-guide').innerHTML =
+    actions
+      .map(([key, act]) => `<span class="kbd">${key}</span> ${act}`)
+      .join('<span class="guide-sep">·</span>') +
+    '<span class="guide-sep">·</span>as setas também movem';
 
   // default preview: what I browsed > my character > first free > first
   if (!previewCharId) {

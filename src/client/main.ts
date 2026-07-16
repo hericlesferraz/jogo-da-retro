@@ -62,7 +62,7 @@ function leaveRoom(): void {
 (document.getElementById('btn-leave') as HTMLButtonElement).onclick = leaveRoom;
 
 socket.on('connect', () => {
-  setConnectionStatus('conectado ✔');
+  setConnectionStatus(''); // status only speaks up when something is wrong
   // First load with a remembered code, or a reconnection: retake the seat.
   if (roomCode && !seated) {
     socket.emit('room:join', { token: playerToken(), code: roomCode }, onRoomReply);
@@ -99,7 +99,7 @@ function onRoomReply(reply: RoomReply): void {
   roomCode = reply.room.code;
   localStorage.setItem(ROOM_KEY, roomCode);
   history.replaceState(null, '', `?sala=${roomCode}`);
-  setConnectionStatus(`conectado ✔ — sala ${roomCode}`);
+  setConnectionStatus('');
   onRoomState(reply.room);
 }
 
