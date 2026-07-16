@@ -7,7 +7,7 @@ Tudo que os dois jogos usam em comum. Um "jogo" aqui é um **modo** plugado nest
 1. **Sala** — na tela inicial, uma pessoa **cria a sala escolhendo o jogo** (Bomber Royale ou Batata-Quente — um único deploy serve os dois) e recebe um **código de 4 letras**; o resto do time digita o código para entrar (o código também vai na URL, então recarregar reconecta). O jogo é fixo por sala — para trocar, cria-se outra sala.
 2. **Lobby** — cada pessoa vê a lista de personagens do time (`config/personagens.json`) e escolhe o seu (sem repetição). **Escolher personagem é estar pronto** (sem ready-check separado — simplificação de playtest): quem criou a sala é o host, escolhe o número de rodadas (padrão 4) e inicia com quem já escolheu; quem não escolheu assiste e entra na próxima partida. Um guia de comandos no rodapé ocupa a espera.
 3. **Rodada** — contagem de 3s, o modo roda até declarar fim (último vivo). Duração alvo: ≤ 2,5 min, garantida por mecânica de pressão do próprio modo (morte súbita / encolhimento).
-4. **Intervalo** — placar parcial na tela por ~12s, próxima rodada começa sozinha.
+4. **Intervalo** — placar parcial na tela por ~7s, próxima rodada começa sozinha.
 5. **Fim** — após todas as rodadas, pódio com ranking acumulado. O último colocado é destacado ("o próximo jogo é com você 😈").
 
 ## Personagens e habilidades

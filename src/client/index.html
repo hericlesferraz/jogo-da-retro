@@ -22,7 +22,12 @@
         font-family: system-ui, sans-serif;
         min-height: 100vh;
         overflow: hidden;
+        /* game UI: no text cursor / accidental selection while playing */
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: default;
       }
+      input { user-select: text; -webkit-user-select: text; cursor: text; }
       button {
         font: inherit;
         color: inherit;
