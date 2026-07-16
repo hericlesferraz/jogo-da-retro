@@ -10,7 +10,7 @@ Bomberman clássico adaptado para 8 jogadores, com os personagens do time e suas
 
 ## Arena
 
-- Grade **17×13** (dimensionada para 8 spawns seguros: 4 cantos + 4 meios de borda, cada spawn com bolso livre em L).
+- Grade **dimensionada pelo nº de jogadores** (feedback de playtest — 9 pessoas em 17×13 nasciam quase coladas): 17×13 até 4, 19×13 até 6, 21×15 até 9 (`BOMBER.GRID_SIZES`). 9 spawns seguros: 4 cantos + 4 meios de borda + centro, cada um com bolso livre em L.
 - Pilares fixos indestrutíveis no padrão clássico (posições ímpares).
 - **~55%** das células livres preenchidas com blocos destrutíveis no início.
 

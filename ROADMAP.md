@@ -41,6 +41,12 @@ O projeto é construído em sessões de trabalho. Cada jogo fica pronto (jogáve
 4. ✅ Fluxo enxuto: fim do ready-check (escolher personagem = pronto; host inicia com quem escolheu), telas sem texto redundante, guia de comandos por tecla flutuando sob o painel, status de conexão só quando há problema.
 5. ✅ Bomber: bomba com contorno legível, boom na explosão e thump ao plantar.
 
-## Sessão 5+ — Polimento (opcional, quando for a vez dele de novo)
+## Sessão 5 — Música temática (planejada)
+
+Plano completo em `docs/05-musica.md`: infra de música por tela (título,
+lobby, partida por modo) com fade, volume baixo e mute persistente; faixas
+por conta do usuário (Pixabay/OpenGameArt/Suno — prompts no doc).
+
+## Sessão 6+ — Polimento (opcional, quando for a vez dele de novo)
 
 - Emojis de torcida para espectadores mortos, efeitos visuais/sonoros, novos mapas, novas habilidades, histórico de temporada entre retros.
