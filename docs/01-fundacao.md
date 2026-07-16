@@ -54,9 +54,9 @@ O sistema de habilidades vive na fundação (`server/core/abilities.ts`); efeito
 
 ## Netcode
 
-- Servidor autoritativo, tick fixo de **30 Hz**; snapshots para os clientes a **15 Hz**.
+- Servidor autoritativo, tick fixo de **30 Hz**; snapshots para os clientes a **30 Hz** (todo tick — dobra o tráfego vs 15 Hz, mas corta ~35ms da latência percebida; decidido após sentir o atraso jogando no deploy em US East).
 - Cliente envia **estado de input** (teclas seguradas) em keydown/keyup, não comandos por frame.
-- Cliente renderiza com **interpolação** entre os 2 últimos snapshots (~100ms de buffer). Sem predição na v1 — com movimento simples e ping doméstico, interpolação basta.
+- Cliente renderiza com **interpolação** entre os 2 últimos snapshots (~75ms de buffer — cobre o intervalo de snapshot + jitter medido de ~44ms). Sem predição na v1 — com movimento simples, interpolação basta; se o atraso incomodar de novo, predição client-side é o próximo degrau.
 - Além dos snapshots, o servidor emite **eventos pontuais** (bomba explodiu, jogador eliminado, power-up pego, repasse da batata) — é o gancho do cliente para animações, partículas e sons. Apresentação nunca é derivada "adivinhando" diffs de snapshot; todo efeito nasce de um evento.
 - **Reconexão**: o auto-reingresso acontece **só quando a URL tem `?sala=`** (recarregar a página mantém, então quem cai volta no mesmo personagem). Abrir o site "limpo" sempre mostra a tela inicial — o último código visitado só pré-preenche o campo de entrar (ninguém fica preso numa sala velha). "Sair da sala" (lobby e pódio) limpa tudo e volta à tela inicial. Jogador desconectado no meio da rodada fica parado (e provavelmente morre — azar).
 - **Salas por código**: o servidor mantém várias salas isoladas (`RoomManager` em `server/core/rooms.ts`), cada uma com seu jogo, código de 4 letras (sem 0/O/1/I — é lido em voz alta) e loop próprio; salas sem humanos conectados por 5 min são removidas.

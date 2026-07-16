@@ -3,7 +3,9 @@
 // update the design doc too.
 
 export const SERVER_TICK_HZ = 30;
-export const SNAPSHOT_HZ = 15;
+/** Every tick — doubles traffic vs 15Hz (still tiny) but shaves ~35ms off
+ * perceived input latency, which matters when the server is a continent away. */
+export const SNAPSHOT_HZ = 30;
 export const TICK_MS = 1000 / SERVER_TICK_HZ;
 
 export const DEFAULT_ROUNDS_PER_MATCH = 4;
@@ -18,8 +20,11 @@ export const ROUND_END_GRACE_MS = 1_200;
 export const MAX_PLAYERS = 9;
 export const MIN_PLAYERS_TO_START = 2;
 
-/** Client renders this far behind the newest snapshot (interpolation buffer). */
-export const INTERP_DELAY_MS = 100;
+/** Client renders this far behind the newest snapshot (interpolation buffer).
+ * Must cover the snapshot interval (33ms @ 30Hz) + network jitter; measured
+ * ~44ms of jitter to the deploy, so 75ms keeps play smooth while cutting
+ * another ~25ms of perceived input latency vs the old 100ms. */
+export const INTERP_DELAY_MS = 75;
 
 // ---------------------------------------------------------------------------
 // Client audio
