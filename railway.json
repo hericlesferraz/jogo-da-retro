@@ -6,6 +6,9 @@
   },
   "deploy": {
     "startCommand": "npm start",
-    "restartPolicyType": "ON_FAILURE"
+    "restartPolicyType": "ON_FAILURE",
+    "multiRegionConfig": {
+      "us-east4-eqdc4a": { "numReplicas": 1 }
+    }
   }
 }
