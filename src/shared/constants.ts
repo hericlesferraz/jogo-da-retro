@@ -9,7 +9,7 @@ export const TICK_MS = 1000 / SERVER_TICK_HZ;
 export const DEFAULT_ROUNDS_PER_MATCH = 4;
 export const MIN_ROUNDS_PER_MATCH = 1;
 export const MAX_ROUNDS_PER_MATCH = 8;
-export const INTERMISSION_MS = 12_000;
+export const INTERMISSION_MS = 7_000;
 export const COUNTDOWN_MS = 3_000;
 /** Grace after the round is decided (last kill animates) before scoring. */
 export const ROUND_END_GRACE_MS = 1_200;
@@ -83,6 +83,10 @@ export const BOMBER = {
   BASE_BOMBS: 1,
   BOMBS_MAX: 5,
   FLAME_MS: 500,
+  /** Flames stop killing this long before they fade. The client renders
+   * ~INTERP_DELAY_MS in the past, so without this a player walking toward
+   * a dying flame dies to fire they never saw themselves touch. */
+  FLAME_HARMLESS_TAIL_MS: 150,
   /** Kicked bombs slide at this speed until they hit something. */
   BOMB_SLIDE_CELLS_PER_S: 8,
 

@@ -579,15 +579,16 @@ export class BomberMode implements ServerMode, AbilityHost {
   private checkFlameDeaths(): void {
     for (const p of this.players.values()) {
       if (!p.alive || p.immuneMs > 0) continue;
-      if (!this.flames.has(this.gi(Math.floor(p.x), Math.floor(p.y)))) continue;
+      const flame = this.flames.get(this.gi(Math.floor(p.x), Math.floor(p.y)));
+      // The tail is harmless (visual-only) — see FLAME_HARMLESS_TAIL_MS.
+      if (!flame || flame.expiresMs <= BOMBER.FLAME_HARMLESS_TAIL_MS) continue;
       if (p.shieldMs > 0) {
         p.shieldMs = 0;
         p.immuneMs = BOMBER.FLAME_MS + 200; // outlive this blast
         this.events.push({ type: 'shieldBlocked', player: p.id });
         continue;
       }
-      const owner = this.flames.get(this.gi(Math.floor(p.x), Math.floor(p.y)))!.owner;
-      this.kill(p, owner === p.id ? null : owner, 'explosion');
+      this.kill(p, flame.owner === p.id ? null : flame.owner, 'explosion');
     }
   }
 
