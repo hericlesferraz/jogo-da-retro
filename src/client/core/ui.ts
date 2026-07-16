@@ -104,20 +104,38 @@ export function renderLobby(view: RoomView, myId: PlayerId | null, socket: GameS
 
   $('lobby-room').innerHTML = `sala: <strong>${view.code}</strong>`;
 
-  // Command guide — floats under the panel, company for the wait.
-  const actions: [string, string][] = [
-    ['W', 'cima'],
-    ['A', 'esquerda'],
-    ['S', 'baixo'],
-    ['D', 'direita'],
-    ['espaço', view.modeId === 'batata' ? 'esquiva' : 'bomba'],
-    ['shift / E', 'habilidade'],
+  // Command + scoring guide cards — float under the panel, company for the
+  // wait. Scoring reflects docs/01 + scoring.ts (mode-aware kill bonus).
+  const guideRow = (content: string) => `<div class="guide-row">${content}</div>`;
+  const keyRows: [string[], string][] = [
+    [['W', 'A', 'S', 'D'], 'mover — setas também'],
+    [['espaço'], view.modeId === 'batata' ? 'esquiva' : 'bomba'],
+    [['shift / E'], 'habilidade'],
   ];
   $('lobby-guide').innerHTML =
-    actions
-      .map(([key, act]) => `<span class="kbd">${key}</span> ${act}`)
-      .join('<span class="guide-sep">·</span>') +
-    '<span class="guide-sep">·</span>as setas também movem';
+    '<div class="guide-title">comandos</div>' +
+    keyRows
+      .map(([keys, act]) =>
+        guideRow(
+          `<span class="keys">${keys.map((k) => `<span class="kbd">${k}</span>`).join('')}</span><span>${act}</span>`,
+        ),
+      )
+      .join('');
+
+  const killRule =
+    view.modeId === 'batata'
+      ? 'último a passar antes do estouro <strong>+2</strong>'
+      : 'eliminação <strong>+3</strong>';
+  $('score-guide').innerHTML =
+    '<div class="guide-title">pontuação</div>' +
+    [
+      '1º eliminado <strong>+1</strong> … vencedor <strong>+N</strong> (N = jogadores)',
+      killRule,
+      'empate: mais vitórias de rodada, depois mais eliminações',
+      'último do ranking organiza o próximo jogo',
+    ]
+      .map(guideRow)
+      .join('');
 
   // default preview: what I browsed > my character > first free > first
   if (!previewCharId) {

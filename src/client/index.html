@@ -309,20 +309,32 @@
         align-items: center; justify-content: center;
       }
       #lobby-hint { text-align: center; min-height: 1em; }
-      /* command guide — floats below the panel, company for the wait */
-      #lobby-guide {
-        display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center;
-        justify-content: center; color: var(--muted); font-size: 0.7rem;
-        margin-top: 1.4rem; padding: 0.55rem 1.1rem;
+      /* command + scoring guides — two cards below the panel, company for
+         the wait; they stack when the window is narrow */
+      #lobby-guides {
+        display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: stretch;
+        justify-content: center; margin-top: 1.4rem;
+      }
+      .guide-card {
+        color: var(--muted); font-size: 0.7rem;
+        padding: 0.6rem 1.1rem 0.65rem;
         background: rgba(11, 17, 34, 0.7);
         border: 1px solid rgba(102, 184, 255, 0.15); border-radius: 8px;
       }
-      #lobby-guide .kbd {
+      .guide-card .guide-title {
+        color: #6fc3ff; letter-spacing: 0.22em; text-transform: uppercase;
+        font-size: 0.62rem; margin-bottom: 0.5rem;
+      }
+      .guide-card .guide-row {
+        display: flex; align-items: center; gap: 0.5rem; padding: 0.14rem 0;
+      }
+      .guide-card .keys { display: flex; gap: 0.25rem; }
+      .guide-card .kbd {
         border: 1px solid #2b3a63; border-bottom-width: 2px; border-radius: 5px;
         background: #0d1531; color: #b8c6e8;
         padding: 2px 7px; font-size: 0.68rem; letter-spacing: 0.05em;
       }
-      #lobby-guide .guide-sep { color: #2b3a63; }
+      #score-guide strong { color: #b8c6e8; }
       #host-controls { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; justify-content: center; }
       #host-controls .row { display: flex; gap: 0.5rem; align-items: center; }
       #host-controls label { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
@@ -507,7 +519,10 @@
           <button id="btn-pick" class="primary"></button>
         </aside>
       </div>
-      <div id="lobby-guide"></div>
+      <div id="lobby-guides">
+        <div class="guide-card" id="lobby-guide"></div>
+        <div class="guide-card" id="score-guide"></div>
+      </div>
     </div>
 
     <div id="screen-game" class="screen" hidden>
