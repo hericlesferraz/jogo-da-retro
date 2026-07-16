@@ -69,6 +69,20 @@ cloudflared tunnel --url http://localhost:3000  # ou: ngrok http 3000
 Depende da máquina e da conexão do host ficarem de pé durante o jogo; com
 ping doméstico a interpolação segura bem.
 
+## Rollback rápido
+
+Antes de publicar um lote de mudanças, a versão no ar fica ancorada em dois
+lugares — se o lote quebrar algo no dia do jogo:
+
+1. **Painel Railway (1 clique, segundos)**: Deployments → deployment anterior
+   → ⋮ → *Redeploy*. Restaura a imagem já buildada, sem rebuild.
+2. **Tag no git** (ex.: `v1` = primeira versão publicada): emergência via CLI
+   sem tocar na main — `git checkout v1 && railway up --detach && git checkout main`
+   sobe a pasta direto, sem passar pelo GitHub.
+
+Convenção: antes de cada push grande, criar/atualizar uma tag da versão
+estável que está no ar.
+
 ## Checklist pós-deploy
 
 1. Abrir o domínio em duas abas/dispositivos → lobby sincroniza.
