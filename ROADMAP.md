@@ -17,8 +17,7 @@ O projeto é construído em sessões de trabalho. Cada jogo fica pronto (jogáve
 5. ✅ Skill de projeto `playtest` criada (`.claude/skills/playtest/`).
 
 **Pendências do usuário (não bloqueiam nada):**
-- Preencher `config/personagens.json` com as pessoas reais do time (nome, cor e habilidade de cada um).
-- Sprites pixel-art de cada pessoa (pipeline em `docs/prompt-personagens.md`); sem sprite o jogo usa placeholder com cor + inicial.
+- ✅ Personagens reais do time (16/jul/2026): 9 sheets geradas pelo usuário, fatiadas com `tools/slice_sprites.py` e configuradas em `config/personagens.json` (habilidade casada com o tema visual de cada arte; `bomb-kick` evitada por não ter efeito na Batata — dash repete em AG e Vini).
 - Deploy com a conta do time (roteiro em `docs/04-deploy.md`).
 
 ## Sessão 3 — Batata-Quente (12/jul/2026)

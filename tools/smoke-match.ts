@@ -8,8 +8,15 @@
 
 import { spawn } from 'node:child_process';
 import { io, type Socket } from 'socket.io-client';
+import config from '../config/personagens.json';
 import type { RoomReply } from '../src/shared/protocol';
 import type { GameEvent, MatchPhase, PlayerId, RoomView } from '../src/shared/types';
+
+const [CHAR_A, CHAR_B] = config.personagens.map((c) => c.id);
+if (!CHAR_A || !CHAR_B) {
+  console.error('✘ config/personagens.json precisa de pelo menos 2 personagens');
+  process.exit(1);
+}
 
 const PORT = 3099;
 const FULL = process.argv.includes('--full');
@@ -124,10 +131,10 @@ async function main(): Promise<void> {
   ghost.disconnect();
   ok(`sala ${code} criada (${MODE}), 2 clientes dentro, host correto, código errado recusado`);
 
-  alice.socket.emit('lobby:selectCharacter', 'exemplo-1');
-  bob.socket.emit('lobby:selectCharacter', 'exemplo-2');
+  alice.socket.emit('lobby:selectCharacter', CHAR_A);
+  bob.socket.emit('lobby:selectCharacter', CHAR_B);
   await waitFor(alice, 'seleção refletida', 3000, () =>
-    alice.view.players.some((p) => p.characterId === 'exemplo-2'),
+    alice.view.players.some((p) => p.characterId === CHAR_B),
   );
   alice.socket.emit('lobby:ready', true);
   bob.socket.emit('lobby:ready', true);
