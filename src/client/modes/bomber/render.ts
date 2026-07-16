@@ -13,8 +13,6 @@ import { beep, boom } from '../../core/audio';
 import { ABILITY_META, characterOf, POWERUP_META } from '../../core/characters';
 import { artFor, spriteBox } from '../../core/sprites';
 
-const { GRID_W: W, GRID_H: H } = BOMBER;
-
 interface Fx {
   type: 'ring' | 'particles' | 'label' | 'wallDrop' | 'flash';
   x: number; // cell coords (center-based for ring/label)
@@ -29,6 +27,11 @@ interface Fx {
 export class BomberRenderer {
   private ctx: CanvasRenderingContext2D;
   private cell = 50;
+  /** Arena size follows the snapshot — it scales with the player count. */
+  private gridW: number = BOMBER.GRID_W;
+  private gridH: number = BOMBER.GRID_H;
+  private maxW = 800;
+  private maxH = 600;
   private fx: Fx[] = [];
   private flameSeen = new Map<string, number>();
   private lastPos = new Map<PlayerId, { x: number; y: number; movingUntil: number }>();
@@ -44,13 +47,18 @@ export class BomberRenderer {
   }
 
   resize(maxW: number, maxH: number): void {
-    const cssCell = Math.max(18, Math.floor(Math.min(maxW / W, maxH / H)));
+    this.maxW = maxW;
+    this.maxH = maxH;
+    const cssCell = Math.max(
+      18,
+      Math.floor(Math.min(maxW / this.gridW, maxH / this.gridH)),
+    );
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     this.cell = cssCell * dpr;
-    this.canvas.width = W * this.cell;
-    this.canvas.height = H * this.cell;
-    this.canvas.style.width = `${W * cssCell}px`;
-    this.canvas.style.height = `${H * cssCell}px`;
+    this.canvas.width = this.gridW * this.cell;
+    this.canvas.height = this.gridH * this.cell;
+    this.canvas.style.width = `${this.gridW * cssCell}px`;
+    this.canvas.style.height = `${this.gridH * cssCell}px`;
   }
 
   handleEvents(events: GameEvent[]): void {
@@ -167,6 +175,11 @@ export class BomberRenderer {
   }
 
   render(snap: BomberSnapshot, myId: PlayerId | null): void {
+    if (snap.gridW !== this.gridW || snap.gridH !== this.gridH) {
+      this.gridW = snap.gridW;
+      this.gridH = snap.gridH;
+      this.resize(this.maxW, this.maxH);
+    }
     const { ctx, cell } = this;
     const now = performance.now();
     ctx.save();
@@ -193,9 +206,9 @@ export class BomberRenderer {
 
   private drawGrid(snap: BomberSnapshot, now: number): void {
     const { ctx, cell } = this;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const c = snap.grid[y * W + x];
+    for (let y = 0; y < snap.gridH; y++) {
+      for (let x = 0; x < snap.gridW; x++) {
+        const c = snap.grid[y * snap.gridW + x];
         const px = x * cell;
         const py = y * cell;
         // floor under everything

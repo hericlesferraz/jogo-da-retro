@@ -2,12 +2,10 @@
 // exists, wanders toward power-ups/blocks otherwise. Good enough to die
 // convincingly — not meant to beat humans.
 
-import { BOMBER } from '../../../shared/constants';
 import { IDLE_INPUT, type Dir, type PlayerId, type PlayerInput } from '../../../shared/types';
-import { Cell, idx, inBounds } from './grid';
+import { Cell, idx } from './grid';
 import type { Bomb, BomberMode, BomberPlayer } from './mode';
 
-const { GRID_W: W, GRID_H: H } = BOMBER;
 const DIRS: { dir: Dir; x: number; y: number }[] = [
   { dir: 'up', x: 0, y: -1 },
   { dir: 'down', x: 0, y: 1 },
@@ -34,10 +32,10 @@ export function computeBotInput(
   const danger = dangerCells(mode);
   const cx = Math.floor(p.x);
   const cy = Math.floor(p.y);
-  const here = idx(cx, cy);
+  const here = mode.gi(cx, cy);
   const passable = (x: number, y: number): boolean => {
-    if (!inBounds(x, y)) return false;
-    if (mode.grid[idx(x, y)] !== Cell.Floor) return false;
+    if (!mode.gin(x, y)) return false;
+    if (mode.grid[mode.gi(x, y)] !== Cell.Floor) return false;
     const bomb = mode.bombAtCell(x, y);
     return !bomb || bomb.walkThrough.has(pid);
   };
@@ -46,7 +44,7 @@ export function computeBotInput(
 
   // 1) In danger → run to the nearest safe cell (crossing danger if needed).
   if (danger.has(here)) {
-    const step = bfsNextStep(cx, cy, passable, (x, y) => !danger.has(idx(x, y)));
+    const step = bfsNextStep(mode, cx, cy, passable, (x, y) => !danger.has(mode.gi(x, y)));
     if (step) input[step] = true;
     else {
       const open = DIRS.filter((d) => passable(cx + d.x, cy + d.y));
@@ -62,7 +60,7 @@ export function computeBotInput(
   if (worthBombing && p.bombsActive < p.maxBombs && rng() < 0.08) {
     const withBomb = new Set(danger);
     addBlast(mode, withBomb, cx, cy, p.range);
-    const escape = bfsNextStep(cx, cy, passable, (x, y) => !withBomb.has(idx(x, y)));
+    const escape = bfsNextStep(mode, cx, cy, passable, (x, y) => !withBomb.has(mode.gi(x, y)));
     if (escape) {
       input.action = true;
       input[escape] = true; // start running immediately
@@ -82,9 +80,10 @@ export function computeBotInput(
   if (mem.pathTarget) {
     const target = mem.pathTarget;
     const step = bfsNextStep(
+      mode,
       cx,
       cy,
-      (x, y) => passable(x, y) && !danger.has(idx(x, y)),
+      (x, y) => passable(x, y) && !danger.has(mode.gi(x, y)),
       (x, y) => x === target.x && y === target.y,
     );
     if (step) input[step] = true;
@@ -107,15 +106,15 @@ function dangerCells(mode: BomberMode): Set<number> {
 }
 
 function addBlast(mode: BomberMode, into: Set<number>, bx: number, by: number, range: number): void {
-  into.add(idx(bx, by));
+  into.add(mode.gi(bx, by));
   for (const d of DIRS) {
     for (let r = 1; r <= range; r++) {
       const x = bx + d.x * r;
       const y = by + d.y * r;
-      if (!inBounds(x, y)) break;
-      const cell = mode.grid[idx(x, y)];
+      if (!mode.gin(x, y)) break;
+      const cell = mode.grid[mode.gi(x, y)];
       if (cell === Cell.Solid) break;
-      into.add(idx(x, y));
+      into.add(mode.gi(x, y));
       if (cell === Cell.Block) break;
     }
   }
@@ -123,7 +122,7 @@ function addBlast(mode: BomberMode, into: Set<number>, bx: number, by: number, r
 
 function nextToBlock(mode: BomberMode, cx: number, cy: number): boolean {
   return DIRS.some(
-    (d) => inBounds(cx + d.x, cy + d.y) && mode.grid[idx(cx + d.x, cy + d.y)] === Cell.Block,
+    (d) => mode.gin(cx + d.x, cy + d.y) && mode.grid[mode.gi(cx + d.x, cy + d.y)] === Cell.Block,
   );
 }
 
@@ -143,15 +142,18 @@ function pickTarget(
   danger: Set<number>,
   rng: () => number,
 ): { x: number; y: number } | null {
-  const powerups = [...mode.powerups.keys()].map((i) => ({ x: i % W, y: Math.floor(i / W) }));
+  const powerups = [...mode.powerups.keys()].map((i) => ({
+    x: i % mode.gridW,
+    y: Math.floor(i / mode.gridW),
+  }));
   if (powerups.length > 0 && rng() < 0.7) {
     powerups.sort((a, b) => dist2(a, cx, cy) - dist2(b, cx, cy));
     return powerups[0]!;
   }
   for (let tries = 0; tries < 20; tries++) {
-    const x = 1 + Math.floor(rng() * (W - 2));
-    const y = 1 + Math.floor(rng() * (H - 2));
-    if (passable(x, y) && !danger.has(idx(x, y))) return { x, y };
+    const x = 1 + Math.floor(rng() * (mode.gridW - 2));
+    const y = 1 + Math.floor(rng() * (mode.gridH - 2));
+    if (passable(x, y) && !danger.has(mode.gi(x, y))) return { x, y };
   }
   return null;
 }
@@ -162,24 +164,26 @@ function dist2(c: { x: number; y: number }, x: number, y: number): number {
 
 /** First move of a shortest path from (sx,sy) to any goal cell. */
 function bfsNextStep(
+  mode: BomberMode,
   sx: number,
   sy: number,
   passable: (x: number, y: number) => boolean,
   isGoal: (x: number, y: number) => boolean,
 ): Dir | null {
   if (isGoal(sx, sy)) return null;
-  const start = idx(sx, sy);
+  const w = mode.gridW;
+  const start = idx(sx, sy, w);
   const cameFrom = new Map<number, { cell: number; firstDir: Dir }>();
   const queue: number[] = [start];
   cameFrom.set(start, { cell: -1, firstDir: 'up' });
   while (queue.length > 0) {
     const cur = queue.shift()!;
-    const x = cur % W;
-    const y = Math.floor(cur / W);
+    const x = cur % w;
+    const y = Math.floor(cur / w);
     for (const d of DIRS) {
       const nx = x + d.x;
       const ny = y + d.y;
-      const ni = idx(nx, ny);
+      const ni = idx(nx, ny, w);
       if (cameFrom.has(ni)) continue;
       // The start cell is always passable (we're standing on it).
       if (!passable(nx, ny)) continue;

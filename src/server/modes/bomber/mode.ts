@@ -24,10 +24,9 @@ import {
   type PlayerInput,
   type RoundResult,
 } from '../../../shared/types';
-import { Cell, generateGrid, idx, inBounds, SPAWNS, spiralOrder } from './grid';
+import { Cell, generateGrid, gridSizeFor, idx, inBounds, spawnsFor, spiralOrder } from './grid';
 import { computeBotInput, type BotMemory } from './bot';
 
-const { GRID_W: W, GRID_H: H } = BOMBER;
 const DIR_VEC: Record<Dir, { x: number; y: number }> = {
   up: { x: 0, y: -1 },
   down: { x: 0, y: 1 },
@@ -83,7 +82,10 @@ interface Flame {
 export class BomberMode implements ServerMode, AbilityHost {
   readonly id = 'bomber';
 
-  grid: Uint8Array = new Uint8Array(W * H);
+  /** Arena size for the current round — scales with the player count. */
+  gridW: number = BOMBER.GRID_W;
+  gridH: number = BOMBER.GRID_H;
+  grid: Uint8Array = new Uint8Array(0);
   players = new Map<PlayerId, BomberPlayer>();
   bombs = new Map<number, Bomb>();
   flames = new Map<number, Flame>(); // key: cell idx
@@ -101,7 +103,7 @@ export class BomberMode implements ServerMode, AbilityHost {
   private nextDecoyId = 1;
   private pressCounter = 1;
 
-  private spiral = spiralOrder();
+  private spiral: { x: number; y: number }[] = [];
   private spiralIdx = 0;
   private suddenDeathOn = false;
   private nextFallMs = 0;
@@ -123,8 +125,20 @@ export class BomberMode implements ServerMode, AbilityHost {
 
   // ------------------------------------------------------------ round setup
 
+  /** Cell index / bounds check for the current round's grid. */
+  gi(x: number, y: number): number {
+    return idx(x, y, this.gridW);
+  }
+
+  gin(x: number, y: number): boolean {
+    return inBounds(x, y, this.gridW, this.gridH);
+  }
+
   startRound(playerIds: PlayerId[]): void {
-    this.grid = generateGrid(this.rng);
+    const size = gridSizeFor(playerIds.length);
+    this.gridW = size.w;
+    this.gridH = size.h;
+    this.grid = generateGrid(this.gridW, this.gridH, this.rng);
     this.players.clear();
     this.bombs.clear();
     this.flames.clear();
@@ -136,14 +150,16 @@ export class BomberMode implements ServerMode, AbilityHost {
     this.result = null;
     this.decidedAtMs = null;
     this.elapsedMs = 0;
+    this.spiral = spiralOrder(this.gridW, this.gridH);
     this.spiralIdx = 0;
     this.suddenDeathOn = false;
     this.nextFallMs = 0;
     this.abilities.resetAll();
     this.botMemory.clear();
 
-    playerIds.slice(0, SPAWNS.length).forEach((pid, i) => {
-      const spawn = SPAWNS[i]!;
+    const spawns = spawnsFor(this.gridW, this.gridH);
+    playerIds.slice(0, spawns.length).forEach((pid, i) => {
+      const spawn = spawns[i]!;
       this.players.set(pid, {
         id: pid,
         x: spawn.x + 0.5,
@@ -323,8 +339,8 @@ export class BomberMode implements ServerMode, AbilityHost {
 
   /** Can the player's center enter this cell? */
   private passable(x: number, y: number, p: BomberPlayer): boolean {
-    if (!inBounds(x, y)) return false;
-    const cell = this.grid[idx(x, y)];
+    if (!this.gin(x, y)) return false;
+    const cell = this.grid[this.gi(x, y)];
     if (cell === Cell.Solid) return false;
     if (cell === Cell.Block && p.ghostMs <= 0) return false;
     const bomb = this.bombAtCell(x, y);
@@ -342,7 +358,7 @@ export class BomberMode implements ServerMode, AbilityHost {
   private cellAt(x: number, y: number): Cell {
     const cx = Math.floor(x);
     const cy = Math.floor(y);
-    return inBounds(cx, cy) ? (this.grid[idx(cx, cy)] as Cell) : Cell.Solid;
+    return this.gin(cx, cy) ? (this.grid[this.gi(cx, cy)] as Cell) : Cell.Solid;
   }
 
   /** After a forced reposition, let the player walk off any bomb under them. */
@@ -357,7 +373,7 @@ export class BomberMode implements ServerMode, AbilityHost {
     if (p.bombsActive >= p.maxBombs) return;
     const cx = Math.floor(p.x);
     const cy = Math.floor(p.y);
-    if (this.grid[idx(cx, cy)] !== Cell.Floor) return; // no bombs inside blocks (ghost)
+    if (this.grid[this.gi(cx, cy)] !== Cell.Floor) return; // no bombs inside blocks (ghost)
     if (this.bombAtCell(cx, cy)) return;
     const walkThrough = new Set<PlayerId>();
     for (const other of this.players.values()) {
@@ -385,7 +401,7 @@ export class BomberMode implements ServerMode, AbilityHost {
       if (b.slideDir) this.slideBomb(b, dtMs);
       b.fuseMs -= dtMs;
       if (b.fuseMs <= 0) toDetonate.push(b.id);
-      else if (this.flames.has(idx(Math.floor(b.x), Math.floor(b.y)))) {
+      else if (this.flames.has(this.gi(Math.floor(b.x), Math.floor(b.y)))) {
         toDetonate.push(b.id); // slid into a lingering flame
       }
     }
@@ -405,8 +421,8 @@ export class BomberMode implements ServerMode, AbilityHost {
       const nx = cx + v.x;
       const ny = cy + v.y;
       const blocked =
-        !inBounds(nx, ny) ||
-        this.grid[idx(nx, ny)] !== Cell.Floor ||
+        !this.gin(nx, ny) ||
+        this.grid[this.gi(nx, ny)] !== Cell.Floor ||
         this.bombAtCellExcept(nx, ny, b.id) !== null ||
         this.playerAtCell(nx, ny) !== null;
       if (blocked) {
@@ -460,16 +476,16 @@ export class BomberMode implements ServerMode, AbilityHost {
         for (let d = 1; d <= bomb.range; d++) {
           const x = bx + v.x * d;
           const y = by + v.y * d;
-          if (!inBounds(x, y)) break;
-          const cell = this.grid[idx(x, y)];
+          if (!this.gin(x, y)) break;
+          const cell = this.grid[this.gi(x, y)];
           if (cell === Cell.Solid) break;
           if (cell === Cell.Block) {
-            this.grid[idx(x, y)] = Cell.Floor;
+            this.grid[this.gi(x, y)] = Cell.Floor;
             destroyedBlocks.push({ x, y });
             cells.push({ x, y });
             if (this.rng() < BOMBER.POWERUP_DROP_CHANCE) {
               const kinds = ['range', 'bomb', 'speed'] as const;
-              this.pendingPowerups.set(idx(x, y), kinds[Math.floor(this.rng() * 3)]!);
+              this.pendingPowerups.set(this.gi(x, y), kinds[Math.floor(this.rng() * 3)]!);
             }
             break; // blocks stop the blast
           }
@@ -484,7 +500,7 @@ export class BomberMode implements ServerMode, AbilityHost {
       }
 
       for (const c of cells) {
-        const i = idx(c.x, c.y);
+        const i = this.gi(c.x, c.y);
         this.powerups.delete(i); // exposed power-ups burn
         if (!this.flames.has(i)) {
           this.flames.set(i, { owner: bomb.owner, expiresMs: BOMBER.FLAME_MS });
@@ -517,7 +533,7 @@ export class BomberMode implements ServerMode, AbilityHost {
     this.decoys = this.decoys.filter((d) => {
       d.msLeft -= dtMs;
       if (d.msLeft <= 0) return false;
-      if (this.flames.has(idx(Math.floor(d.x), Math.floor(d.y)))) return false; // burned
+      if (this.flames.has(this.gi(Math.floor(d.x), Math.floor(d.y)))) return false; // burned
       return true;
     });
   }
@@ -534,7 +550,7 @@ export class BomberMode implements ServerMode, AbilityHost {
     this.nextFallMs -= dtMs;
     while (this.nextFallMs <= 0 && this.spiralIdx < this.spiral.length) {
       const { x, y } = this.spiral[this.spiralIdx++]!;
-      const i = idx(x, y);
+      const i = this.gi(x, y);
       this.grid[i] = Cell.Solid;
       this.powerups.delete(i);
       this.pendingPowerups.delete(i);
@@ -563,14 +579,14 @@ export class BomberMode implements ServerMode, AbilityHost {
   private checkFlameDeaths(): void {
     for (const p of this.players.values()) {
       if (!p.alive || p.immuneMs > 0) continue;
-      if (!this.flames.has(idx(Math.floor(p.x), Math.floor(p.y)))) continue;
+      if (!this.flames.has(this.gi(Math.floor(p.x), Math.floor(p.y)))) continue;
       if (p.shieldMs > 0) {
         p.shieldMs = 0;
         p.immuneMs = BOMBER.FLAME_MS + 200; // outlive this blast
         this.events.push({ type: 'shieldBlocked', player: p.id });
         continue;
       }
-      const owner = this.flames.get(idx(Math.floor(p.x), Math.floor(p.y)))!.owner;
+      const owner = this.flames.get(this.gi(Math.floor(p.x), Math.floor(p.y)))!.owner;
       this.kill(p, owner === p.id ? null : owner, 'explosion');
     }
   }
@@ -591,7 +607,7 @@ export class BomberMode implements ServerMode, AbilityHost {
       if (!p.alive) continue;
       const cx = Math.floor(p.x);
       const cy = Math.floor(p.y);
-      const i = idx(cx, cy);
+      const i = this.gi(cx, cy);
       const powerup = this.powerups.get(i);
       if (powerup) {
         this.powerups.delete(i);
@@ -675,6 +691,8 @@ export class BomberMode implements ServerMode, AbilityHost {
     }));
     return {
       modeId: 'bomber',
+      gridW: this.gridW,
+      gridH: this.gridH,
       grid: gridStr,
       players,
       bombs: [...this.bombs.values()].map((b) => ({
@@ -683,10 +701,10 @@ export class BomberMode implements ServerMode, AbilityHost {
         y: round2(b.y),
         fuse: Math.max(0, Math.min(1, b.fuseMs / BOMBER.BOMB_FUSE_MS)),
       })),
-      flames: [...this.flames.keys()].map((i) => ({ x: i % W, y: Math.floor(i / W) })),
+      flames: [...this.flames.keys()].map((i) => ({ x: i % this.gridW, y: Math.floor(i / this.gridW) })),
       powerups: [...this.powerups.entries()].map(([i, kind]) => ({
-        x: i % W,
-        y: Math.floor(i / W),
+        x: i % this.gridW,
+        y: Math.floor(i / this.gridW),
         kind,
       })),
       decoys: this.decoys.map((d) => ({
@@ -747,8 +765,8 @@ export class BomberMode implements ServerMode, AbilityHost {
     for (let d = TELEPORT_RANGE_CELLS; d >= 1; d--) {
       const x = cx + v.x * d;
       const y = cy + v.y * d;
-      if (!inBounds(x, y)) continue;
-      if (this.grid[idx(x, y)] !== Cell.Floor) continue;
+      if (!this.gin(x, y)) continue;
+      if (this.grid[this.gi(x, y)] !== Cell.Floor) continue;
       if (this.bombAtCell(x, y)) continue;
       p.x = x + 0.5;
       p.y = y + 0.5;

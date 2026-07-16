@@ -44,8 +44,16 @@ export const TARGETED_ABILITY_RADIUS_CELLS = 7;
 // ---------------------------------------------------------------------------
 
 export const BOMBER = {
+  /** Classic size — also the fallback/default before the first snapshot. */
   GRID_W: 17,
   GRID_H: 13,
+  /** The arena scales with the crowd (playtest: 9 players spawned almost on
+   * top of each other in 17×13). Odd sizes only — border + pillar lattice. */
+  GRID_SIZES: [
+    { maxPlayers: 4, w: 17, h: 13 },
+    { maxPlayers: 6, w: 19, h: 13 },
+    { maxPlayers: 9, w: 21, h: 15 },
+  ],
   /** Fraction of free interior cells filled with destructible blocks. */
   BLOCK_FILL: 0.55,
 

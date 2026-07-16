@@ -170,7 +170,7 @@ export type GameEvent =
 
 export type PowerupKind = 'range' | 'bomb' | 'speed';
 
-/** Grid cell chars in BomberSnapshot.grid: row-major GRID_W × GRID_H string. */
+/** Grid cell chars in BomberSnapshot.grid: row-major gridW × gridH string. */
 export const CELL = {
   FLOOR: '.',
   SOLID: '#', // border, pillar or fallen sudden-death wall
@@ -196,6 +196,9 @@ export interface BomberPlayerSnap {
 
 export interface BomberSnapshot {
   modeId: 'bomber';
+  /** Arena dimensions for this round — scale with the player count. */
+  gridW: number;
+  gridH: number;
   grid: string;
   players: BomberPlayerSnap[];
   bombs: { id: number; x: number; y: number; fuse: number }[]; // fuse: 0..1 left
